@@ -11,3 +11,5 @@ repo): `C:\Dev\cerebro\projetos\horizonte.md`.
    API (segunda engine divide o orçamento por token). Regras visuais do anel: roadmap § 1.
 3. **Recorrência de agenda só no helper Python**, nunca em Lua (roadmap § 5).
 4. **`.ini`/`.inc` em UTF-16 LE com BOM**; `;` no meio de valor NÃO é comentário no Rainmeter.
+5. **`agenda.json` só muda junto com [docs/CONTRATOS.md](docs/CONTRATOS.md)**; `uv run pytest`
+   verde antes de commit; armadilhas em [docs/ARMADILHAS.md](docs/ARMADILHAS.md).

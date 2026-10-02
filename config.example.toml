@@ -1,0 +1,36 @@
+# Modelo do config.toml do Horizonte. O arquivo real fica em %LOCALAPPDATA%\Horizonte\config.toml
+# e é criado sozinho na primeira execução do agenda-sync. Este modelo é só referência.
+# Os endereços secretos (pessoal, corporativo) NUNCA vão aqui: ficam no Gerenciador de Credenciais
+# (rode `agenda-sync configurar`). Doc: docs/agenda_sync.md
+
+schemaVersion = 1
+contaIndice = 0
+intervaloFeriadosH = 168
+janelaDias = 15
+timeoutS = 20
+rainmeterExe = 'C:\Program Files\Rainmeter\Rainmeter.exe'
+widgets = ['Horizonte\Dia', 'Horizonte\Agenda', 'Horizonte\Relogio']
+
+[[fontes]]
+id = "pessoal"
+nome = "Pessoal"
+cor = "#7AA2F7"
+tipo = "privada"
+contaIndice = 0
+
+[[fontes]]
+id = "corporativo"
+nome = "Corporativo"
+cor = "#C3A6FF"
+tipo = "privada"
+contaIndice = 0
+
+[[fontes]]
+id = "feriados"
+nome = "Feriados"
+cor = "#5FD0B5"
+tipo = "publica"
+contaIndice = 0
+# endereço público em formato iCal da agenda de feriados (Google Agenda > Configurações da agenda
+# de feriados > "Endereço público em formato iCal"). `agenda-sync migrar-do-ini` preenche sozinho.
+url = ""

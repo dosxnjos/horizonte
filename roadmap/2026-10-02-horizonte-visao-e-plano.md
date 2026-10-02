@@ -374,6 +374,65 @@ O código só conhece os apelidos.
 
 ## 4. Fases (cada uma entrega algo usável sozinha)
 
+### Execução (iniciada em 02/10/2026)
+
+**Decisão do Gabriel:** pacote **novo do zero**. O skin antigo não recebe
+polimento, então a fase 0 encolheu para o corte de rede.
+
+Passos:
+- [x] **Fase 0, rede.** No skin antigo, `ReaderUpdateRate=900` e feriados com
+  `UpdateRate=86400`. Backup em `Gcalendar.ini.bak`, ao lado do original. Foi
+  conferido em 02/10 que as 3 fontes respondem `BEGIN:VCALENDAR`: a corporativa
+  voltou depois que o Gabriel regerou o endereço.
+- [x] **Spikes** de Rainmeter: leitura de JSON pelo Lua, Container como máscara,
+  escala de DPI, contador de CPU, junction. Os resultados estão em
+  [§ Resultado dos spikes](#resultado-dos-spikes).
+- [x] **Fase 1:** `agenda_sync`, com as URLs migradas do `.ini` antigo para o
+  Gerenciador de Credenciais sem digitação.
+  - **Testes:** 97 verdes; a revisão adversarial achou e corrigiu 6 bugs.
+  - **Prova real:** as 3 fontes deram ok, com 14 eventos na janela. A expansão
+    independente com `dateutil` bateu com 0 divergências. Das 6 séries tidas como
+    "ativas", só 4 estão vivas; as outras 2 já esgotaram o COUNT.
+  - **Agendamento:** a tarefa `\Horizonte\AgendaSync` roda a cada 10 min, no
+    logon, na volta do sono e quando a rede conecta, inclusive na bateria.
+  - **Ponte `agenda-legado.inc` para o skin antigo: descartada** (fable, 02/10).
+    Como o pacote novo vem em seguida, seria trabalho jogado fora.
+- [ ] **Fase 2:** pacote com o tema Expressivo, um widget por vez, primeiro
+  estático e depois animado, com prova no desktop real.
+
+Os tokens do tema Expressivo saem fixos (esquema "Ardósia" do protótipo). Derivar
+as cores do papel de parede fica para a v2.
+
+**Cadência dos feriados: semanal** (`intervaloFeriadosH=168`). O Gabriel
+questionou o "1x por dia" em 02/10, e a decisão técnica é do fable.
+- O calendário público de feriados do Google muda poucas vezes por ano: quando sai
+  o calendário oficial do ano seguinte, ou quando um feriado ou ponto facultativo é
+  decretado.
+- Uma vez por semana pega isso com no máximo 7 dias de atraso, e a janela do
+  widget é de 14 dias.
+- O custo do diário era desprezível (~100 KB/dia). A troca é por coerência, não
+  por economia.
+- **Reverteria:** um feriado decretado em cima da hora sumir do widget.
+- O skin antigo fica em 1x/dia, porque vai ser aposentado.
+
+### Resultado dos spikes
+
+Medido no Rainmeter 4.5.26 real em 02/10, com o Windows a 125%.
+
+| spike | resultado | regra para a Fase 2 |
+| --- | --- | --- |
+| Lua lê JSON | `io.open` + `os.getenv` + `dofile(json.lua)` funcionam. O BOM quebra o decode; arquivo pela metade dá erro capturável. **Script em UTF-8 vira mojibake** nos acentos; em UTF-16 LE com BOM sai certo. Não há `require`. `os.date('%A')` sai em inglês | todo `.lua` de widget em **UTF-16 LE BOM**; `json.lua` (ASCII) por `dofile`; tirar o BOM e usar `pcall(json.decode)` com último estado bom; nomes de dia e mês por tabela própria |
+| Container como máscara | corta certo, inclusive com canto arredondado; dá para usar dois String (o que sai e o que entra) | dígitos que rolam por Container. O passo é a altura do meter String (≈1,33 em). **Todo passo de ActionTimer precisa de `!UpdateMeasure` do próprio timer** |
+| DPI | o Rainmeter roda **DPI-unaware**: o Windows estica ×1,25 e borra. pt→px é sempre a 96 DPI | hoje: `Scale=1`, `FontSize = px×0,75`. Recomendado: shim HighDpiAware (nítido), com `Scale=1,25` em geometria e fonte. Aplicar **só quando o skin antigo sair**, porque o shim encolhe o skin antigo. `Scale` é uma variável única |
+| CPU, RAM, disco, GPU | "% Processor Utility" (nome em inglês) bate com o Gerenciador ±3, com ~2 s de atraso, e passa de 100 no turbo. `Alias=CPU` é inútil (0/100) | `Clamp(Utility,0,100)`; fallback `Measure=CPU`; GPU `Alias=GPU Index=0`; `FreeDiskSpace`/`PhysicalMemory` exatos |
+| Junction | funciona, mas só aparece depois de `!RefreshApp` | `instalar.ps1 -ComSkin` cria a junction e dispara `!RefreshApp` |
+| Shape | arco com ponta redonda, tracejado, blob por Path e cartão com raio 32 em gradiente saem lisos. `AntiAlias` não muda nada em Shape | anéis, blob e cartões direto em Shape |
+| Custo de animação | ~38 fps reais; ~9% de um núcleo animando (pico 26%); ~0% parado. **RAM base do Rainmeter: 79,5 MB** | só transição curta (≤0,5 s), nunca laço. A meta "≤30 MB" da prova vira **delta da suíte ≤ +15 MB sobre a base** |
+
+**Reverteria:** com o shim, o Rainmeter pode se comportar mal em monitores com DPI
+diferentes (não testado, porque os dois estão a 125%). Nesse caso, fica o modo
+borrado.
+
 ### Fase 0 · Estancar o skin de hoje (1 a 2 h de agente)
 
 **Escopo reduzido em 02/10.** O pacote novo substitui o skin antigo, então polir

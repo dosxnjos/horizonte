@@ -137,11 +137,8 @@ As [direções originais](direcoes/) ficam intactas como registro do estudo.
 ## Decisões em aberto (dono: Gabriel)
 
 1. ~~Direção~~: dois temas, Expressivo (em uso) e Aurora.
-2. ~~Cor do "agora" no tema Aurora~~: adiada (Gabriel, 02/10, sem preferência).
-   No tema Aurora, o "agora" e o anel do Claude acima de 60% usam o mesmo âmbar.
-   Isso só importa quando a Aurora virar tema de verdade. Nesse momento, o padrão
-   técnico é trocar o "agora" para outra cor e deixar o âmbar só para o Claude. É
-   reversível e quem decide é o fable. O Expressivo, que é o tema em uso, não tem
-   esse conflito.
+2. ~~Cor do "agora" no tema Aurora~~: **fica o âmbar, igual ao do Claude**
+   (Gabriel, 02/10: "ficar na mesma cor não é um problema, não tem me
+   incomodado"). A sugestão dos juízes de trocar a cor foi descartada.
 3. ~~Relógio~~: os dois temas usam dígitos cheios. A matriz de pontos era só do
    Instrumento, que saiu.

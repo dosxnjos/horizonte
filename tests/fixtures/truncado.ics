@@ -1,0 +1,12 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Horizonte//fixture sintetica//PT
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Agenda Sintetica
+BEGIN:VEVENT
+UID:simples-tzid@fixture.invalid
+DTSTAMP:20261001T120000Z
+DTSTART;TZID=America/Sao_Paulo:20261005T090000
+DTEND;TZID=America/Sao_Paulo:20261005T100000
+SUMMARY:Alinhamento semanal
+LOCATION:Sala 3 - responsavel pessoa.ficticia@example.org

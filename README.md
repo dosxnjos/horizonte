@@ -31,7 +31,8 @@ Cada widget liga, desliga e muda de lugar sozinho. Todos dividem o mesmo tema.
 - **Agenda:** um helper em Python (`agenda_sync`) baixa os endereços iCal das
   suas agendas, expande os eventos recorrentes e grava um `agenda.json` local.
   Os endereços secretos ficam no Gerenciador de Credenciais do Windows, nunca em
-  arquivo.
+  arquivo. Uso: [docs/agenda_sync.md](docs/agenda_sync.md); formato do arquivo:
+  [docs/CONTRATOS.md](docs/CONTRATOS.md).
 - **Máquina:** medidas nativas do Rainmeter.
 - **Claude:** leitura do `snapshot.json` que o claude-usage-tray grava. O widget
   nunca chama a API da Anthropic.
