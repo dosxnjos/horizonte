@@ -1,0 +1,1276 @@
+<!doctype html>
+<html lang="pt-BR" data-wp="aurora">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Horizonte, Aurora</title>
+<meta name="description" content="Direção visual Aurora do Horizonte: widgets de desktop em vidro escuro, luz como material, anéis cônicos e motion por mudança de estado. Protótipo interativo com dados ilustrativos.">
+<style>
+/* ============================================================
+   Horizonte, direção Aurora
+   Tese: o widget é vidro escuro; a única coisa que tem cor própria
+   é a luz (o âmbar do AGORA, o anel do Claude, o alerta). O resto
+   é material e tipografia. Movimento só quando o dado muda.
+   ============================================================ */
+
+@property --v    { syntax: '<number>'; inherits: true;  initial-value: 0; }
+@property --c    { syntax: '<color>';  inherits: true;  initial-value: #E9E6E1; }
+@property --glowk{ syntax: '<number>'; inherits: true;  initial-value: 0; }
+@property --spot { syntax: '<number>'; inherits: true;  initial-value: 0; }
+@property --amb  { syntax: '<number>'; inherits: true;  initial-value: .25; }
+
+:root{
+  /* texto (branco quente, opacidades fixas) */
+  --text:   #EDEBE8;
+  --text-2: rgba(237,235,232,.70);
+  --text-3: rgba(237,235,232,.66);
+  --hair:   rgba(255,255,255,.08);
+  --focus:  #F4F1EC;            /* anel de foco; escurece no tema claro */
+  --ink:    255,255,255;        /* tinta das sobreposições (trilho, hover, pontos) */
+  --amber-ink: var(--amber);    /* âmbar em traço/ponto; escurece no tema claro */
+  --lit-bg: #F2EFEA; --lit-fg: #161412;
+  --base:   #1A1917;            /* tom do vidro, usado para rampas opacas */
+  --glass:  rgba(21,20,18,.50); /* tinta sobre o desfoque; sobe em fundo claro */
+
+  /* único acento quente */
+  --amber: #FFC27A;
+
+  /* agendas: croma baixo, mesma luminosidade */
+  --c-pess: #A8C4A2;
+  --c-corp: #9DAECB;
+  --c-fer:  #D6A59E;
+
+  /* contrato da bandeja: não mexer */
+  --ok:    #30A46C;
+  --warn:  #F5A623;
+  --crit:  #E5484D;
+  --stale: #747684;
+
+  /* forma */
+  --r-w: 14px;   /* contêiner */
+  --r-i: 4px;    /* interno */
+
+  /* tipo */
+  --f-display: "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --f-text: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "Cascadia Mono", "Cascadia Code", ui-monospace, Consolas, monospace;
+
+  /* motion (molas geradas no JS; estes são os valores de fallback) */
+  --ease-out: cubic-bezier(.23,1,.32,1);
+  --ease-fluent: cubic-bezier(0,0,0,1);
+  --ease-move: cubic-bezier(.77,0,.175,1);
+  --d-ui: 340ms;   --e-ui: var(--ease-out);
+  --d-ring: 540ms; --e-ring: var(--ease-out);
+
+  /* grão: ruído fractal inline, sem requisição */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  color-scheme: dark;
+  transition: --spot 320ms var(--ease-out);
+}
+/* papel de parede claro: o material vira vidro claro (como o modo claro do sistema), não um bloco marrom */
+html[data-wp="duna"] .desk{
+  --text:   #1D1A16;
+  --text-2: rgba(29,26,22,.74);
+  --text-3: rgba(29,26,22,.66);
+  --ink:    24,20,16;
+  --base:   #EEEAE4;
+  --glass:  rgba(250,247,242,.60);
+  --amber-ink: #C97412;
+  --lit-bg: #1D1A16; --lit-fg: #F6F3EE;
+  --c-pess: #5F8A59; --c-corp: #5D739C; --c-fer: #B06A60;
+  --focus:  #1D1A16;
+}
+html[data-wp="duna"] .w{ box-shadow: 0 0 0 1px rgba(60,40,20,.07), 0 1px 2px rgba(60,40,20,.05); }
+html[data-wp="lago"]{ --glass: rgba(16,19,21,.72); }
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; }
+body{
+  background: #121110;
+  color: var(--text);
+  font: 400 14px/1.45 var(--f-text);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+button{ font: inherit; color: inherit; }
+.sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip-path: inset(50%); white-space:nowrap; }
+:focus-visible{ outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------------- papel de parede ---------------- */
+.wall{ position: fixed; inset: 0; z-index: 0; overflow: hidden; }
+.wp{ position:absolute; inset:0; opacity:0; transition: opacity 700ms cubic-bezier(.33,0,.67,1); }
+html[data-wp="aurora"] .wp-aurora,
+html[data-wp="duna"]   .wp-duna,
+html[data-wp="lago"]   .wp-lago{ opacity: 1; }
+.wp::after{ /* grão do papel de parede */
+  content:""; position:absolute; inset:0; background-image: var(--grain);
+  mix-blend-mode: overlay; opacity: .32; pointer-events:none;
+}
+.wp i{ position:absolute; display:block; border-radius:50%; }
+
+/* Aurora: tinta morna, cortina verde-petróleo difusa, brasa baixa. Nada de roxo. */
+.wp-aurora{
+  background:
+    radial-gradient(55% 45% at 16% 10%, oklch(0.50 0.085 170 / .55), oklch(0.50 0.085 170 / 0) 70%),
+    radial-gradient(45% 60% at 82% 28%, oklch(0.36 0.06 222 / .70), oklch(0.36 0.06 222 / 0) 72%),
+    radial-gradient(42% 36% at 72% 98%, oklch(0.58 0.10 58 / .38), oklch(0.58 0.10 58 / 0) 70%),
+    radial-gradient(70% 55% at 35% 72%, oklch(0.22 0.03 200 / .85), oklch(0.22 0.03 200 / 0) 80%),
+    oklch(0.155 0.010 70);
+}
+.wp-aurora .cortina{
+  left:-12%; top:6%; width:85%; height:34%;
+  background: linear-gradient(90deg in oklch,
+     oklch(0.72 0.11 162 / 0), oklch(0.72 0.11 162 / .42) 32%,
+     oklch(0.64 0.08 196 / .24) 64%, oklch(0.64 0.08 196 / 0));
+  transform: rotate(-11deg); filter: blur(56px);
+}
+.wp-aurora .veu{
+  right:-8%; top:-14%; width:46%; height:58%;
+  background: radial-gradient(closest-side, oklch(0.55 0.07 205 / .32), oklch(0.55 0.07 205 / 0));
+  filter: blur(30px);
+}
+
+/* Duna: claro, areia e sálvia, uma dobra esculpida. */
+.wp-duna{
+  background:
+    radial-gradient(48% 42% at 82% 16%, oklch(0.86 0.065 52 / .95), oklch(0.86 0.065 52 / 0) 72%),
+    radial-gradient(55% 50% at 12% 88%, oklch(0.83 0.045 145 / .85), oklch(0.83 0.045 145 / 0) 72%),
+    radial-gradient(40% 36% at 34% 26%, oklch(0.975 0.012 90 / .95), oklch(0.975 0.012 90 / 0) 70%),
+    radial-gradient(38% 34% at 96% 92%, oklch(0.74 0.075 45 / .55), oklch(0.74 0.075 45 / 0) 70%),
+    oklch(0.915 0.026 75);
+}
+.wp-duna .dobra{
+  left:8%; top:48%; width:120%; height:80%;
+  background: linear-gradient(170deg in oklch, oklch(0.985 0.01 85 / .9), oklch(0.80 0.055 58 / .65) 60%, oklch(0.74 0.06 50 / .0));
+  transform: rotate(-8deg); filter: blur(26px);
+}
+.wp-duna .dobra2{
+  left:-30%; top:62%; width:90%; height:70%;
+  background: linear-gradient(190deg in oklch, oklch(0.93 0.03 120 / .8), oklch(0.80 0.05 140 / 0));
+  transform: rotate(10deg); filter: blur(30px);
+}
+
+/* Lago: médio, colorido, para provar o vidro sobre cor. */
+.wp-lago{
+  background:
+    radial-gradient(50% 50% at 14% 18%, oklch(0.46 0.085 186 / .85), oklch(0.46 0.085 186 / 0) 72%), /* escuro sob o relógio sem contêiner: texto branco segura 4.5:1 */
+    radial-gradient(42% 46% at 46% 52%, oklch(0.66 0.10 182 / .55), oklch(0.66 0.10 182 / 0) 72%),
+    radial-gradient(50% 55% at 88% 36%, oklch(0.34 0.08 248 / .85), oklch(0.34 0.08 248 / 0) 72%),
+    radial-gradient(45% 40% at 22% 96%, oklch(0.74 0.11 118 / .45), oklch(0.74 0.11 118 / 0) 72%),
+    radial-gradient(36% 30% at 70% 84%, oklch(0.72 0.12 70 / .40), oklch(0.72 0.12 70 / 0) 70%),
+    oklch(0.42 0.07 212);
+}
+.wp-lago .faixa{
+  left:20%; top:30%; width:90%; height:38%;
+  background: linear-gradient(100deg in oklch, oklch(0.80 0.09 175 / 0), oklch(0.82 0.08 165 / .42) 45%, oklch(0.60 0.08 220 / 0));
+  transform: rotate(-16deg); filter: blur(50px);
+}
+
+/* ---------------- cena ---------------- */
+.desk{
+  position: relative; z-index: 1;
+  min-height: 100dvh;
+  padding: 40px 48px 132px;
+  display: grid; gap: 20px;
+  grid-template-columns: minmax(360px, 440px) minmax(0, 1fr) minmax(320px, 380px);
+  grid-template-areas:
+    "clock .  agenda"
+    "dia   .  agenda"
+    "maq   .  claude";
+  align-content: start; align-items: start;
+}
+.a-clock{ grid-area: clock; }
+.a-dia{ grid-area: dia; }
+.a-ag{ grid-area: agenda; align-self: stretch; }
+.a-mq{ grid-area: maq; }
+.a-cl{ grid-area: claude; }
+
+/* ---------------- material do widget ---------------- */
+.w{
+  position: relative; isolation: isolate;
+  border-radius: var(--r-w);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(30px) saturate(1.35);
+  backdrop-filter: blur(30px) saturate(1.35);
+  padding: 18px 20px 20px;
+  color: var(--text);
+  transition: background-color 500ms cubic-bezier(.33,0,.67,1), color 500ms cubic-bezier(.33,0,.67,1), box-shadow 500ms;
+}
+.w::before{ /* ruído do material, como no Acrylic */
+  content:""; position:absolute; inset:0; border-radius: inherit;
+  background-image: var(--grain); opacity: .05; mix-blend-mode: overlay;
+  pointer-events:none; z-index: -1;
+}
+.w::after{ /* hairline de luz: base fixa (topo mais claro) + luz do cursor */
+  content:""; position:absolute; inset:0; border-radius: inherit; padding: 1px;
+  background:
+    radial-gradient(220px circle at var(--mx, -999px) var(--my, -999px), rgba(255,255,255, calc(var(--spot) * .9)), rgba(255,255,255,0) 70%),
+    linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.045) 42%, rgba(255,255,255,.035));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+.wi{ position: relative; } /* camada interna (recebe o desfoque da entrada) */
+.wh{
+  margin: 0 0 14px; font: 600 13px/1.2 var(--f-text); color: var(--text-2);
+  letter-spacing: .005em;
+}
+.num{ font-variant-numeric: tabular-nums; }
+
+/* ---------------- dígitos que rolam ---------------- */
+.rl{ display: inline-flex; font-variant-numeric: tabular-nums; white-space: pre; }
+.slot{
+  position: relative; display: inline-block; overflow: hidden;
+  padding: .1em 0; margin: -.1em 0;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+}
+.dg{ display: inline-block; }
+.dg.out{ position: absolute; left: 0; top: .1em; }
+.dg.colon{ opacity: .68; }
+
+/* ---------------- relógio (sem contêiner: tipografia sobre o papel de parede) ---------------- */
+.w-clock{ padding: 6px 4px 4px; color: #F6F4F0; transition: color 600ms cubic-bezier(.33,0,.67,1); }
+html[data-wp="duna"] .w-clock{ color: #1E1A16; }
+.ck-time{
+  margin: 0; font: 600 clamp(76px, 7.6vw, 112px)/1 var(--f-display);
+  letter-spacing: -.035em; font-variant-numeric: tabular-nums;
+  text-shadow: none;
+}
+.ck-date{ margin: 12px 0 0; font: 600 18px/1.3 var(--f-display); opacity: .9; }
+.ck-chip{
+  display: inline-flex; align-items: center; gap: 8px; margin: 12px 0 0;
+  padding: 4px 11px 4px 9px; border-radius: 99px;
+  font: 500 13px/1.3 var(--f-text);
+  background: rgba(255,255,255,.10);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+}
+html[data-wp="duna"] .ck-chip{ background: rgba(30,26,22,.08); }
+html[data-wp="lago"] .ck-chip{ background: rgba(8,14,18,.22); }
+.dot{ width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--dc, var(--text-3)); display:inline-block; }
+
+/* ---------------- Dia ---------------- */
+.w-dia{ overflow: hidden; padding-bottom: 16px; }
+.w-dia::after{
+  background:
+    radial-gradient(150px 70px at var(--nx, 50%) 100%, rgba(255,194,122, calc(var(--amb) * .95)), rgba(255,194,122,0) 75%),
+    radial-gradient(220px circle at var(--mx, -999px) var(--my, -999px), rgba(255,255,255, calc(var(--spot) * .9)), rgba(255,255,255,0) 70%),
+    linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.045) 42%, rgba(255,255,255,.035));
+}
+.w-dia{ transition: --amb 600ms var(--ease-out), background-color 500ms cubic-bezier(.33,0,.67,1); }
+.hero{ position: relative; height: 100px; }
+.layer{ position: absolute; inset: 0; padding-right: 96px; }
+.h-lbl{
+  margin: 0; display: flex; align-items: center; gap: 8px;
+  font: 600 13px/1.4 var(--f-text); color: var(--text-2);
+}
+.h-lbl .dot{ transition: background-color 260ms var(--ease-out), box-shadow 260ms var(--ease-out); }
+.h-title{
+  margin: 6px 0 0; font: 600 26px/1.18 var(--f-display); letter-spacing: -.012em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.h-sub{ margin: 4px 0 0; color: var(--text-2); display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.layer.agora .h-lbl .dot,
+.layer.urgent .h-lbl .dot{ background: var(--amber-ink); box-shadow: 0 0 10px rgba(255,194,122,.7); }
+.layer.urgent .h-lbl{ color: var(--text); }
+.layer.livre .h-lbl .dot{ background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-3); }
+.h-bar{ margin-top: 12px; --bc: var(--amber-ink); }
+
+.ico{ width: 14px; height: 14px; flex: none; color: var(--text-3); }
+
+.vid{
+  position: absolute; top: 18px; right: 20px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 32px; padding: 0 14px 0 11px; border: 0; border-radius: 99px;
+  background: rgba(var(--ink),.07); color: var(--text-3);
+  font: 600 13px/1 var(--f-text); cursor: default;
+  transition: background-color 220ms var(--ease-out), color 220ms var(--ease-out),
+              opacity 200ms var(--ease-out), transform 160ms var(--ease-out), box-shadow 220ms var(--ease-out);
+}
+.vid svg{ width: 16px; height: 16px; }
+.vid.lit{ background: var(--lit-bg); color: var(--lit-fg); cursor: pointer; box-shadow: 0 0 0 1px rgba(var(--ink),.3), 0 0 22px rgba(var(--ink),.16); }
+.vid.lit:active{ transform: scale(.97); }
+.vid.off{ opacity: 0; transform: scale(.96); pointer-events: none; }
+
+/* linha do dia */
+.tl{ position: relative; margin-top: 16px; }
+.tl-track{ position: relative; height: 30px; }
+.tl-dots i{ position: absolute; top: 50%; width: 2px; height: 2px; margin: -1px 0 0 -1px; border-radius: 50%; background: rgba(var(--ink),.24); }
+.tl-dots i.h{ width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; background: rgba(var(--ink),.38); }
+.blk{
+  position: absolute; top: 50%; height: 7px; margin-top: -3.5px; border-radius: 99px;
+  background: var(--dc); opacity: .72;
+  transition: opacity 260ms var(--ease-out), transform 260ms var(--ease-out), box-shadow 260ms var(--ease-out);
+}
+.blk.past{ opacity: .28; }
+.blk.cur{ opacity: 1; box-shadow: 0 0 14px color-mix(in oklch, var(--dc) 60%, transparent); }
+.blk.gone{ opacity: 0; transform: scaleY(.3); }
+.needle{ position: absolute; inset: 0; pointer-events: none; transform: translateX(var(--x, 0%)); transition: transform var(--d-ui) var(--e-ui); }
+.needle .nl{ position: absolute; left: -1px; top: 1px; bottom: 1px; width: 2px; border-radius: 2px; background: var(--amber-ink); box-shadow: 0 0 8px rgba(255,194,122,.8); }
+.needle .nc{ position: absolute; left: -3.5px; top: -2px; width: 7px; height: 7px; border-radius: 50%; background: var(--amber-ink); }
+.needle .ng{
+  position: absolute; left: -110px; width: 220px; top: -24px; height: 120px;
+  background: radial-gradient(closest-side, rgba(255,194,122,.26), rgba(255,194,122,0));
+  opacity: var(--ngo, .8);
+}
+.reset{ position: absolute; top: -3px; width: 0; }
+.reset i{ position: absolute; left: -.5px; top: 9px; width: 1px; height: 18px; background: rgba(var(--ink),.38); }
+.reset svg{ position: absolute; left: -6px; top: -13px; /* -13: folga sobre a bolinha da agulha quando o reset cai perto de agora */ width: 12px; height: 12px; color: var(--text-2); }
+.tl-hours{ position: relative; height: 16px; margin-top: 4px; font: 500 12px/16px var(--f-mono); color: var(--text-2); } /* passa sob a luz âmbar da agulha: precisa da tinta mais forte */
+.tl-hours span{ position: absolute; top: 0; transform: translateX(-50%); }
+.tl-hours span:first-child{ transform: none; }
+.tl-hours span:last-child{ transform: translateX(-100%); }
+
+/* barras (folga de 4 px, pontas redondas) */
+.bar{ position: relative; height: var(--h, 4px); overflow: hidden; border-radius: 99px; }
+.bar-f, .bar-t{ position: absolute; inset: 0; border-radius: 99px; }
+.bar-f{ background: var(--bc, #E9E6E1); transform: translateX(calc((var(--p, 0) - 1) * 100%)); transition: transform var(--d-ui) var(--e-ui), background-color 260ms var(--ease-out); }
+.bar-t{ background: rgba(var(--ink),.11); transform: translateX(calc(var(--p, 0) * 100% + 4px)); transition: transform var(--d-ui) var(--e-ui); }
+
+/* ---------------- anéis (gradiente cônico, folga, pontas redondas) ---------------- */
+.ring{
+  position: relative; width: var(--s); height: var(--s); flex: none;
+  --trk: rgba(var(--ink),.10);
+  --c0: color-mix(in oklch, var(--c) 38%, var(--base));
+  --c1: color-mix(in oklch, var(--c), white 14%);
+  transition: --v var(--d-ring) var(--e-ring), --c 280ms var(--ease-out), --glowk 280ms var(--ease-out);
+}
+.ring .arc, .ring .glow > i{
+  position: absolute; inset: 0; border-radius: 50%;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--w) - .6px), #000 calc(100% - var(--w) + .4px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - var(--w) - .6px), #000 calc(100% - var(--w) + .4px));
+}
+.ring .arc{
+  background: conic-gradient(from 0deg,
+    var(--c0) 0deg,
+    var(--c1) calc(var(--v) * 3.6deg),
+    transparent 0 calc(var(--v) * 3.6deg + var(--gap)),
+    var(--trk) 0 calc(360deg - var(--gap)),
+    transparent 0);
+}
+.ring .glow{ position: absolute; inset: 0; filter: blur(calc(var(--w) * 1.1)); opacity: var(--glowk); pointer-events: none; }
+.ring .glow > i{ background: conic-gradient(from 0deg, transparent 0deg, color-mix(in oklch, var(--c) 30%, transparent) calc(var(--v) * 1.8deg), var(--c1) calc(var(--v) * 3.6deg), transparent 0); }
+.cap{
+  position: absolute; left: 50%; top: 50%; width: var(--w); height: var(--w);
+  margin: calc(var(--w) / -2) 0 0 calc(var(--w) / -2); border-radius: 50%;
+  transition: opacity 160ms var(--ease-out);
+}
+.cap.a{ background: var(--c0); transform: translateY(calc(var(--s) / -2 + var(--w) / 2)); }
+.cap.b{ background: var(--c1); transform: rotate(calc(var(--v) * 3.6deg)) translateY(calc(var(--s) / -2 + var(--w) / 2));
+        box-shadow: 0 0 calc(var(--w) * 1.6) color-mix(in oklch, var(--c1) calc(var(--glowk) * 100%), transparent); }
+.ring.zero .cap{ opacity: 0; }
+.mark{
+  position: absolute; left: 50%; top: -9px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%;
+  background: var(--text); box-shadow: 0 0 8px rgba(var(--ink),.6);
+  opacity: 0; transform: scale(.4);
+  transition: opacity 200ms var(--ease-out), transform var(--d-ui) var(--e-ui);
+}
+.ring.zoom .mark{ opacity: 1; transform: none; }
+.mid{ position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; }
+
+/* ---------------- Agenda ---------------- */
+.w-ag{ display: flex; flex-direction: column; min-height: 0; }
+.w-ag > .wi{ display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.ag-h{ display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.ag-h .wh{ margin: 0; flex: 1; }
+.src{ display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: var(--text-3); }
+.src span{ margin-right: 2px; }
+.src i{ width: 6px; height: 6px; border-radius: 50%; background: var(--dc); transition: background-color 260ms var(--ease-out), box-shadow 260ms var(--ease-out); }
+.src i.bad{ background: var(--crit); box-shadow: 0 0 0 2px rgba(229,72,77,.25), 0 0 10px rgba(229,72,77,.6); }
+.lock{
+  width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text-2); cursor: pointer;
+  transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out), transform 120ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine){ .lock:hover{ background: rgba(var(--ink),.07); color: var(--text); } }
+.lock:active{ transform: scale(.94); }
+.lock[aria-pressed="true"]{ color: var(--text); background: rgba(var(--ink),.10); }
+.lock svg{ width: 16px; height: 16px; overflow: visible; }
+.lock .shackle{ transform-origin: 10.5px 7px; transform: translate(0,-1.6px) rotate(-18deg); transition: transform var(--d-ui) var(--e-ui); }
+.lock[aria-pressed="true"] .shackle{ transform: none; }
+
+.ag-list{
+  position: relative; flex: 1; min-height: 0; overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
+}
+.row{ display: grid; grid-template-columns: 76px 1fr; align-items: center; column-gap: 10px; min-height: 30px; }
+.row.g{ display: block; min-height: 0; padding: 14px 0 4px; font: 600 13px/1.3 var(--f-text); color: var(--text-2); }
+.row.g:first-child{ padding-top: 4px; }
+.row .t{ font: 450 13px/1 var(--f-mono); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.row .t.wd{ font: 500 12px/1.2 var(--f-text); color: var(--text-3); }
+.row .ti{ display: flex; align-items: center; gap: 9px; min-width: 0; }
+.row .ti b{ font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.row .ti .tag{ margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); }
+.row .ti .tag .dot{ background: var(--amber-ink); box-shadow: 0 0 8px rgba(255,194,122,.7); }
+.row.gap .t{ height: 1px; align-self: center; background-image: linear-gradient(90deg, rgba(var(--ink),.24) 50%, transparent 0); background-size: 6px 1px; }
+.row.gap .gl{ color: var(--text-3); font-size: 13px; font-variant-numeric: tabular-nums; }
+.row.err{ display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; margin: 2px 0 6px; border-radius: 8px; background: rgba(229,72,77,.10); box-shadow: inset 0 0 0 1px rgba(229,72,77,.28); }
+.row.err .dot{ margin-top: 7px; background: var(--crit); }
+.row.err p{ margin: 0; font-size: 13px; line-height: 1.45; color: var(--text); }
+.row.err p span{ color: var(--text-2); }
+.row.empty{ color: var(--text-3); grid-template-columns: 1fr; }
+.ag-foot{ margin: 10px 0 0; font-size: 13px; color: var(--text-3); }
+
+/* ---------------- Máquina ---------------- */
+.gauges{ display: flex; justify-content: space-between; gap: 8px; }
+.gauge{ margin: 0; display: grid; justify-items: center; gap: 8px; }
+.gauge figcaption{ font: 500 12.5px/1.25 var(--f-text); color: var(--text-2); text-align: center; white-space: nowrap; }
+.gauge figcaption span{ color: var(--text-3); font-variant-numeric: tabular-nums; }
+.gv{ font: 600 16px/1 var(--f-display); letter-spacing: -.01em; display: inline-flex; align-items: baseline; }
+.gv small{ font: 600 10.5px/1 var(--f-text); color: var(--text-2); margin-left: 1px; }
+.quotas{ margin-top: 18px; display: grid; gap: 12px; }
+.q-h{ display: flex; justify-content: space-between; gap: 12px; margin-bottom: 7px; font-size: 13px; }
+.q-h span:first-child{ color: var(--text); font-weight: 500; }
+.q-h span:last-child{ color: var(--text-2); font-variant-numeric: tabular-nums; }
+.quotas .bar{ --bc: rgba(var(--ink),.82); }
+
+/* ---------------- Claude ---------------- */
+.cl-top{ display: flex; align-items: center; gap: 22px; padding-top: 6px; }
+.cl-n{ font: 600 34px/1 var(--f-display); letter-spacing: -.03em; display: inline-flex; align-items: baseline; transition: color 280ms var(--ease-out); }
+.cl-n small{ font: 600 14px/1 var(--f-text); color: var(--text-2); margin-left: 1px; letter-spacing: 0; }
+.cl-age{ position: absolute; left: 0; right: 0; top: calc(50% + 22px); font: 500 12px/1 var(--f-text); color: var(--text-2); height: 12px; opacity: 0; transform: translateY(3px); transition: opacity 200ms var(--ease-out), transform 260ms var(--ease-out); }
+.w-cl.stale .cl-age{ opacity: 1; transform: none; }
+.w-cl.stale .cl-n{ color: color-mix(in oklch, var(--stale), var(--text) 40%); }
+.cl-side{ flex: 1; min-width: 0; display: grid; gap: 10px; }
+.cl-side h3{ margin: 0; font: 600 13px/1.2 var(--f-text); color: var(--text-2); }
+.mini{ display: grid; grid-template-columns: 22px 1fr 36px; align-items: center; gap: 10px; font-size: 12.5px; }
+.mini > span:first-child{ color: var(--text-3); }
+.mini > span:last-child{ text-align: right; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.cl-leg{ margin: 16px 0 0; font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; min-height: 19px; }
+.cl-leg b{ font-weight: 500; color: var(--text); }
+
+/* ---------------- controles de demonstração ---------------- */
+.dock{
+  position: fixed; z-index: 10; left: 0; right: 0; bottom: 16px; margin-inline: auto;
+  width: min(800px, calc(100% - 32px));
+  padding: 10px 12px; border-radius: 14px;
+  background: rgba(28,26,24,.88);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2); backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.09), 0 10px 30px -18px rgba(0,0,0,.6);
+  font-size: 12.5px; color: var(--text-2);
+  display: grid; gap: 8px;
+}
+.dk-row{ display: flex; align-items: center; gap: 12px; min-width: 0; }
+.dk-lbl{ color: var(--text-3); white-space: nowrap; }
+.dk-time{ display: inline-flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.dk-time output{ font: 500 13px/1 var(--f-mono); color: var(--text); font-variant-numeric: tabular-nums; min-width: 5ch; }
+.dk-sep{ width: 1px; align-self: stretch; background: rgba(255,255,255,.1); }
+input[type=range]{ -webkit-appearance: none; appearance: none; flex: 1; min-width: 110px; height: 24px; background: transparent; margin: 0; cursor: pointer; --fill: 50%; }
+input[type=range]::-webkit-slider-runnable-track{ height: 4px; border-radius: 99px; background: linear-gradient(90deg, rgba(237,235,232,.85) var(--fill), rgba(255,255,255,.14) var(--fill)); }
+input[type=range]::-moz-range-track{ height: 4px; border-radius: 99px; background: rgba(255,255,255,.14); }
+input[type=range]::-moz-range-progress{ height: 4px; border-radius: 99px; background: rgba(237,235,232,.85); }
+input[type=range]::-webkit-slider-thumb{ -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: #F4F2EE; box-shadow: 0 0 0 4px rgba(255,255,255,.08), 0 1px 3px rgba(0,0,0,.45); transition: transform 140ms var(--ease-out); }
+input[type=range]::-moz-range-thumb{ width: 16px; height: 16px; border: 0; border-radius: 50%; background: #F4F2EE; box-shadow: 0 0 0 4px rgba(255,255,255,.08); }
+input[type=range]:active::-webkit-slider-thumb{ transform: scale(1.12); }
+input[type=range]:focus-visible{ outline: none; }
+input[type=range]:focus-visible::-webkit-slider-thumb{ box-shadow: 0 0 0 2px #121110, 0 0 0 4px #F4F1EC; }
+input[type=range]:focus-visible::-moz-range-thumb{ box-shadow: 0 0 0 2px #121110, 0 0 0 4px #F4F1EC; }
+.chips{ display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; min-width: 0; padding: 4px; margin: -4px; }
+.chips::-webkit-scrollbar{ display: none; }
+.chip{
+  flex: none; height: 28px; padding: 0 11px; border: 0; border-radius: 99px;
+  background: transparent; color: var(--text-2); font-size: 12.5px; cursor: pointer; white-space: nowrap;
+  transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out), transform 120ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine){ .chip:hover{ background: rgba(255,255,255,.06); color: var(--text); } }
+.chip:active{ transform: scale(.97); }
+.chip[aria-pressed="true"]{ background: rgba(255,255,255,.12); color: var(--text); }
+.sw{ display: inline-flex; gap: 6px; }
+.sw button{
+  width: 22px; height: 22px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+  transition: box-shadow 160ms var(--ease-out), transform 120ms var(--ease-out);
+}
+.sw button:active{ transform: scale(.92); }
+.sw button[aria-pressed="true"]{ box-shadow: inset 0 0 0 1px rgba(255,255,255,.2), 0 0 0 2px rgba(32,30,28,.9), 0 0 0 3.5px #F4F1EC; }
+.sw [data-wp="aurora"]{ background: radial-gradient(circle at 30% 30%, oklch(0.55 0.09 168), oklch(0.18 0.02 70) 70%); }
+.sw [data-wp="duna"]{ background: radial-gradient(circle at 70% 30%, oklch(0.88 0.06 52), oklch(0.86 0.04 140) 75%); }
+.sw [data-wp="lago"]{ background: radial-gradient(circle at 30% 30%, oklch(0.70 0.10 182), oklch(0.36 0.08 240) 75%); }
+.dk-btn{ height: 28px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); cursor: pointer; white-space: nowrap; transition: background-color 140ms var(--ease-out), transform 120ms var(--ease-out); }
+@media (hover: hover) and (pointer: fine){ .dk-btn:hover{ background: rgba(255,255,255,.06); color: var(--text); } }
+.dk-btn:active{ transform: scale(.97); }
+.dk-tools{ display: flex; align-items: center; gap: 12px; }
+.dk-tools .dk-sep{ height: 22px; }
+
+/* ---------------- responsivo ---------------- */
+@media (max-width: 1180px){
+  .desk{ grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 32px 28px 180px;
+    grid-template-areas: "clock agenda" "dia agenda" "maq claude"; }
+}
+@media (max-width: 760px){
+  .desk{ grid-template-columns: minmax(0, 1fr); padding: 24px 16px 200px; gap: 16px;
+    grid-template-areas: "clock" "dia" "agenda" "claude" "maq"; }
+  .a-ag{ align-self: start; }
+  .ag-list{ -webkit-mask-image: none; mask-image: none; overflow: visible; }
+  .w{ padding: 16px 16px 18px; }
+  .vid{ top: 16px; right: 16px; }
+  .layer{ padding-right: 0; }
+  .hero{ height: 96px; }
+  .vid{ top: auto; bottom: auto; }
+  .h-title{ font-size: 23px; padding-right: 0; }
+  .w-dia .hero{ margin-top: 0; }
+  .dock{ bottom: 8px; width: calc(100% - 16px); gap: 6px; padding: 8px 10px; }
+  .dk-row:first-child{ flex-wrap: wrap; row-gap: 4px; }
+  .dk-tools{ flex-basis: 100%; }
+  .dk-tools .dk-sep{ display: none; }
+  .dk-tools .dk-btn{ margin-left: auto; }
+  .dock .dk-row:last-child{ order: 3; }
+}
+@media (max-width: 760px){
+  /* no celular o botão de vídeo vai para baixo do título, fora da camada que cruza */
+  .w-dia{ display: flex; flex-direction: column; }
+  .vid{ position: relative; top: 0; right: 0; align-self: flex-start; margin-top: 2px; order: 2; }
+  .w-dia .tl{ order: 3; }
+  .vid.off{ display: none; }
+}
+
+/* ---------------- acessibilidade ---------------- */
+@media (prefers-reduced-motion: reduce){
+  .ring, .needle, .bar-f, .bar-t, .mark, .lock .shackle, .blk, .w-dia, .vid, .cl-age{ transition-duration: 0ms !important; }
+  .wp{ transition-duration: 200ms; }
+}
+@media (prefers-reduced-transparency: reduce){
+  :root, html[data-wp]{ --glass: rgba(24,23,21,.96); }
+  html[data-wp="duna"] .desk{ --glass: rgba(248,245,240,.97); }
+  .w, .dock, .ck-chip{ -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="wall" aria-hidden="true">
+  <div class="wp wp-aurora"><i class="cortina"></i><i class="veu"></i></div>
+  <div class="wp wp-duna"><i class="dobra"></i><i class="dobra2"></i></div>
+  <div class="wp wp-lago"><i class="faixa"></i></div>
+</div>
+
+<main class="desk" id="desk">
+
+  <!-- 1. Relógio -->
+  <section class="w-clock a-clock widget" aria-label="Relógio">
+    <div class="wi">
+      <p class="ck-time"><span class="rl" id="ck" aria-hidden="true"></span><span class="sr" id="ck-sr"></span></p>
+      <p class="ck-date">sexta, 2 de outubro</p>
+      <p class="ck-chip"><i class="dot" style="--dc: var(--c-fer)"></i>feriado seg 12/10</p>
+    </div>
+  </section>
+
+  <!-- 2. Dia -->
+  <section class="w w-dia a-dia widget" id="dia" aria-label="Dia">
+    <div class="wi">
+      <div class="hero" id="hero"></div>
+      <p class="sr" id="dia-status" role="status"></p>
+      <button class="vid off" id="vid" type="button" aria-disabled="true" tabindex="-1" aria-hidden="true">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="1.75" y="4.25" width="9" height="7.5" rx="1.75"/><path d="M10.75 7.1 14.25 5v6l-3.5-2.1"/></svg>
+        <span>Entrar</span>
+      </button>
+      <div class="tl" role="group" aria-label="Linha do dia, das 7h às 21h">
+        <div class="tl-track" id="track">
+          <div class="tl-dots" id="tldots" aria-hidden="true"></div>
+          <div id="blocks"></div>
+          <div class="reset" id="reset" title="Reset da janela do Claude às 14:59" aria-label="Reset da janela do Claude às 14:59" role="img">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.7"/><path d="M11.8 1.6v3.1H8.7"/></svg>
+            <i></i>
+          </div>
+          <div class="needle" id="needle" aria-hidden="true"><i class="ng"></i><i class="nl"></i><i class="nc"></i></div>
+        </div>
+        <div class="tl-hours" aria-hidden="true"><span style="left:0%">07</span><span style="left:21.43%">10</span><span style="left:42.86%">13</span><span style="left:64.29%">16</span><span style="left:85.71%">19</span><span style="left:100%">21</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Agenda -->
+  <section class="w w-ag a-ag widget" aria-label="Agenda">
+    <div class="wi">
+      <div class="ag-h">
+        <h2 class="wh">Próximos 14 dias</h2>
+        <span class="src" id="src" role="img" aria-label="Fontes: pessoal, corporativa e feriados sincronizadas">
+          <span aria-hidden="true">fontes</span>
+          <i data-s="pess" style="--dc: var(--c-pess)" title="Pessoal: sincronizada há 3 min"></i>
+          <i data-s="corp" style="--dc: var(--c-corp)" title="Corporativa: sincronizada há 3 min"></i>
+          <i data-s="fer"  style="--dc: var(--c-fer)"  title="Feriados: sincronizada hoje"></i>
+        </span>
+        <button class="lock" id="lock" type="button" aria-pressed="false" aria-label="Modo privado" title="Modo privado: esconde os títulos">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="3.25" y="7" width="9.5" height="6.75" rx="1.75"/><path class="shackle" d="M5.5 7V5.1a2.5 2.5 0 0 1 5 0V7"/></svg>
+        </button>
+      </div>
+      <div class="ag-list" id="aglist"></div>
+      <p class="ag-foot" id="agfoot">mais 6 eventos até 16/10</p>
+    </div>
+  </section>
+
+  <!-- 4. Máquina -->
+  <section class="w w-mq a-mq widget" aria-label="Máquina">
+    <div class="wi">
+      <h2 class="wh">Máquina</h2>
+      <div class="gauges">
+        <figure class="gauge"><div class="ring" id="r-cpu" style="--s:66px;--w:5px"><div class="glow"><i></i></div><div class="arc"></div><i class="cap a"></i><i class="cap b"></i><div class="mid"><span class="gv"><span class="rl" id="v-cpu"></span><small>%</small></span></div></div><figcaption>CPU</figcaption></figure>
+        <figure class="gauge"><div class="ring" id="r-ram" style="--s:66px;--w:5px"><div class="glow"><i></i></div><div class="arc"></div><i class="cap a"></i><i class="cap b"></i><div class="mid"><span class="gv"><span class="rl" id="v-ram"></span><small>%</small></span></div></div><figcaption>RAM <span id="ramg">9,3G</span></figcaption></figure>
+        <figure class="gauge"><div class="ring" id="r-gpu" style="--s:66px;--w:5px"><div class="glow"><i></i></div><div class="arc"></div><i class="cap a"></i><i class="cap b"></i><div class="mid"><span class="gv"><span class="rl" id="v-gpu"></span><small>%</small></span></div></div><figcaption>GPU</figcaption></figure>
+        <figure class="gauge"><div class="ring" id="r-ssd" style="--s:66px;--w:5px" title="83% usado"><div class="glow"><i></i></div><div class="arc"></div><i class="cap a"></i><i class="cap b"></i><div class="mid"><span class="gv"><span class="num">80</span><small>GB</small></span></div></div><figcaption>C: <span>livres</span><span class="sr">, 83% do disco usado</span></figcaption></figure>
+      </div>
+      <div class="quotas">
+        <div><div class="q-h"><span>Drive G</span><span>26 de 100 GB livres</span></div><div class="bar" id="q-g"><i class="bar-f"></i><i class="bar-t"></i></div></div>
+        <div><div class="q-h"><span>Drive I</span><span>11 de 15 GB livres</span></div><div class="bar" id="q-i"><i class="bar-f"></i><i class="bar-t"></i></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Claude -->
+  <section class="w w-cl a-cl widget" id="claude" aria-label="Claude">
+    <div class="wi">
+      <h2 class="wh">Claude</h2>
+      <div class="cl-top">
+        <div class="ring" id="r-cl" style="--s:118px;--w:9px">
+          <div class="glow"><i></i></div><div class="arc"></div><i class="cap a"></i><i class="cap b"></i><i class="mark" title="Escala de 95 a 100%"></i>
+          <div class="mid"><span class="cl-n"><span class="rl" id="v-cl"></span><small>%</small></span><span class="cl-age" id="cl-age"></span></div>
+        </div>
+        <div class="cl-side">
+          <h3>Conta 6</h3>
+          <div class="mini"><span>5h</span><div class="bar" id="b6-5"><i class="bar-f"></i><i class="bar-t"></i></div><span>34%</span></div>
+          <div class="mini"><span>7d</span><div class="bar" id="b6-7"><i class="bar-f"></i><i class="bar-t"></i></div><span>90%</span></div>
+        </div>
+      </div>
+      <p class="cl-leg" id="cl-leg"></p>
+    </div>
+  </section>
+</main>
+
+<!-- Controles de demonstração (fora dos widgets) -->
+<aside class="dock" aria-label="Controles de demonstração">
+  <div class="dk-row">
+    <label class="dk-time" for="t"><span class="dk-lbl">Horário</span><output id="tout" for="t">14:37</output></label>
+    <input type="range" id="t" min="420" max="1260" step="1" value="877" aria-label="Horário simulado" aria-valuetext="14:37">
+    <span class="dk-tools">
+    <span class="dk-sep" aria-hidden="true"></span>
+    <span class="dk-lbl dk-wplbl">Fundo</span>
+    <span class="sw" role="group" aria-label="Papel de parede">
+      <button type="button" data-wp="aurora" aria-pressed="true" aria-label="Papel de parede Aurora, escuro" title="Aurora (escuro)"></button>
+      <button type="button" data-wp="duna" aria-pressed="false" aria-label="Papel de parede Duna, claro" title="Duna (claro)"></button>
+      <button type="button" data-wp="lago" aria-pressed="false" aria-label="Papel de parede Lago, colorido" title="Lago (colorido)"></button>
+    </span>
+    <button class="dk-btn" id="replay" type="button">Rever entrada</button>
+    </span>
+  </div>
+  <div class="dk-row">
+    <div class="chips" id="scenes" role="group" aria-label="Cena">
+      <button class="chip" type="button" data-sc="normal" aria-pressed="true">Dia normal</button>
+      <button class="chip" type="button" data-sc="carga" aria-pressed="false">PC sob carga</button>
+      <button class="chip" type="button" data-sc="stale" aria-pressed="false">Bandeja sem medição nova</button>
+      <button class="chip" type="button" data-sc="corp" aria-pressed="false">Agenda corporativa falhando</button>
+      <button class="chip" type="button" data-sc="limite" aria-pressed="false">Claude no limite</button>
+    </div>
+  </div>
+</aside>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= motion: molas e preferências ================= */
+const RM = matchMedia('(prefers-reduced-motion: reduce)');
+let reduce = RM.matches;
+RM.addEventListener?.('change', e => { reduce = e.matches; });
+
+const HAS_LINEAR = CSS.supports('transition-timing-function', 'linear(0, 1)');
+function spring(k, z){
+  const w0 = Math.sqrt(k);
+  let f;
+  if (z < 1){
+    const wd = w0 * Math.sqrt(1 - z*z);
+    f = t => 1 - Math.exp(-z*w0*t) * (Math.cos(wd*t) + (z*w0/wd) * Math.sin(wd*t));
+  } else {
+    f = t => 1 - (1 + w0*t) * Math.exp(-w0*t);
+  }
+  let last = 0;
+  for (let t = 0; t < 3; t += 1/240){ if (Math.abs(1 - f(t)) > 0.001) last = t; }
+  const T = last + 1/240, N = 44, pts = [];
+  for (let i = 0; i <= N; i++) pts.push(+f(T*i/N).toFixed(4));
+  pts[N] = 1;
+  return { d: Math.round(T*1000), e: HAS_LINEAR ? `linear(${pts.join(', ')})` : 'cubic-bezier(.23,1,.32,1)' };
+}
+/* tokens de mola */
+const SP = {
+  ui:    spring(520, 0.88),  // posição pequena: dígito, troca de cartão, agulha
+  ring:  spring(240, 0.82),  // anel: ~1% de overshoot, lê como físico sem mentir o dado
+  enter: spring(300, 1.0)    // entrada: criticamente amortecida
+};
+const root = document.documentElement;
+root.style.setProperty('--d-ui', SP.ui.d + 'ms');
+root.style.setProperty('--e-ui', SP.ui.e);
+root.style.setProperty('--d-ring', SP.ring.d + 'ms');
+root.style.setProperty('--e-ring', SP.ring.e);
+const EASE_OUT = 'cubic-bezier(.23,1,.32,1)';
+
+let scrubbing = false; // arrastar o horário é alta frequência: motion encurta
+
+/* ================= dígitos que rolam ================= */
+class Roller{
+  constructor(el){ this.el = el; this.str = ''; this.slots = []; }
+  set(str, dir = 1, instant = false){
+    str = String(str);
+    if (str === this.str) return;
+    const old = this.str; this.str = str;
+    const quick = instant || reduce || !old;
+    const n = str.length, o = old.length;
+    while (this.slots.length < n){ const s = document.createElement('span'); s.className = 'slot'; this.el.prepend(s); this.slots.unshift(s); }
+    while (this.slots.length > n){ this.slots.shift().remove(); }
+    let k = 0;
+    for (let i = n - 1; i >= 0; i--){
+      const ch = str[i], oi = i - (n - o), och = oi >= 0 ? old[oi] : null;
+      const slot = this.slots[i];
+      if (ch === och && slot.querySelector('.dg:not(.out)')) continue;
+      this.swap(slot, ch, dir, quick, (k++) * 24);
+    }
+  }
+  swap(slot, ch, dir, quick, delay){
+    slot.querySelectorAll('.dg.out').forEach(g => g.remove());
+    const cur = slot.querySelector('.dg');
+    const nu = document.createElement('span');
+    nu.className = 'dg' + (ch === ':' ? ' colon' : '');
+    nu.textContent = ch === ' ' ? ' ' : ch;
+    if (quick || !cur){ slot.replaceChildren(nu); return; }
+    cur.getAnimations().forEach(a => a.cancel());
+    cur.classList.add('out');
+    slot.appendChild(nu);
+    const f = scrubbing ? .4 : 1;
+    const a = cur.animate(
+      [{ transform: 'translateY(0)', opacity: 1, filter: 'blur(0)' },
+       { transform: `translateY(${-dir * 42}%)`, opacity: 0, filter: 'blur(2px)' }],
+      { duration: 190 * f, easing: EASE_OUT, delay: delay * f, fill: 'forwards' });
+    a.onfinish = () => cur.remove();
+    nu.animate(
+      [{ transform: `translateY(${dir * 62}%)`, opacity: 0, filter: 'blur(3px)' },
+       { transform: 'translateY(0)', opacity: 1, filter: 'blur(0)' }],
+      { duration: SP.ui.d * f, easing: SP.ui.e, delay: delay * f, fill: 'backwards' });
+  }
+}
+
+/* ================= dados ilustrativos ================= */
+const CAL = { pess: { n: 'pessoal', c: 'var(--c-pess)' }, corp: { n: 'corporativo', c: 'var(--c-corp)' }, fer: { n: 'feriados', c: 'var(--c-fer)' } };
+const TODAY = [
+  { id: 'daily', s: 540,  e: 555,  t: 'Daily do time', cal: 'corp', rec: true },
+  { id: 'bi',    s: 630,  e: 690,  t: 'Revisão do BI', cal: 'corp' },
+  { id: 'one',   s: 900,  e: 930,  t: '1:1 semanal',   cal: 'corp', rec: true, meet: true },
+  { id: 'dent',  s: 1050, e: 1110, t: 'Dentista',      cal: 'pess' }
+];
+const SAT = [ { id: 'aniv', allday: true, t: 'Aniversário', cal: 'pess', rec: true } ];
+const MON = [
+  { id: 'daily2', s: 540, e: 555, t: 'Daily do time',  cal: 'corp', rec: true },
+  { id: 'comite', s: 600, e: 660, t: 'Comitê semanal', cal: 'corp' }
+];
+const DAY0 = 420, DAY1 = 1260, SPAN = DAY1 - DAY0;
+const RESET = 899; // 14:59
+
+const ICON_REC = '<svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-label="recorrente" role="img"><path d="M13 8a5 5 0 1 1-1.6-3.7"/><path d="M11.8 1.6v3.1H8.7"/></svg>';
+
+const pad = n => String(n).padStart(2, '0');
+const fmt = m => { m = ((m % 1440) + 1440) % 1440; return pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
+const dur = m => { if (m < 60) return m + ' min'; const h = Math.floor(m / 60), r = m % 60; return r ? `${h}h ${pad(r)}` : `${h}h`; };
+const durLong = m => { if (m < 60) return m + ' min'; const h = Math.floor(m / 60), r = m % 60; return r ? `${h}h${pad(r)}` : `${h}h`; };
+const xPct = m => ((m - DAY0) / SPAN * 100);
+
+/* ================= estado ================= */
+const S = { t: 877, scene: 'normal', wp: 'aurora', priv: false, staleSince: null };
+const CORP_FAIL = 785; // 13:05: início ilustrativo da falha da agenda corporativa
+/* "desde" nunca no futuro: se o horário simulado volta para antes da falha, ela passa a ter começado há pouco */
+const corpSince = t => Math.max(DAY0 - 60, Math.min(CORP_FAIL, t - 5));
+let prevT = S.t;
+let firstRender = true;
+
+/* ================= elementos ================= */
+const $ = id => document.getElementById(id);
+const ck = new Roller($('ck'));
+const R = {
+  cpu: { el: $('r-cpu'), num: new Roller($('v-cpu')) },
+  ram: { el: $('r-ram'), num: new Roller($('v-ram')) },
+  gpu: { el: $('r-gpu'), num: new Roller($('v-gpu')) },
+  ssd: { el: $('r-ssd') },
+  cl:  { el: $('r-cl'),  num: new Roller($('v-cl')) }
+};
+const clAge = new Roller($('cl-age'));
+const hold = new Set();          // anéis segurados durante a entrada
+const ringTarget = new Map();
+
+/* folga de 4 px entre indicador e trilho, convertida em graus por anel */
+function initRing(el){
+  const s = parseFloat(el.style.getPropertyValue('--s')), w = parseFloat(el.style.getPropertyValue('--w'));
+  const r = s / 2 - w / 2;
+  el.style.setProperty('--gap', ((w / 2 + 4) / r * 180 / Math.PI).toFixed(2) + 'deg');
+}
+Object.values(R).forEach(r => initRing(r.el));
+
+function setRing(el, v, color, glow, zoom){
+  ringTarget.set(el, { v, color, glow, zoom });
+  if (hold.has(el)) return;
+  el.style.setProperty('--v', v);
+  el.style.setProperty('--c', color);
+  el.style.setProperty('--glowk', glow);
+  el.classList.toggle('zero', v < .2);
+  el.classList.toggle('zoom', !!zoom);
+}
+const neutral = () => S.wp === 'duna' ? '#2B2723' : '#E9E6E1'; // anel de sistema em repouso: sem cor
+const sysColor = v => v >= 95 ? 'var(--crit)' : v >= 85 ? 'var(--warn)' : null;
+const resolve = c => c.startsWith('var(') ? getComputedStyle(root).getPropertyValue(c.slice(4, -1)).trim() : c;
+
+/* ================= Claude: janela 5h ilustrativa ================= */
+function claudePct(t){
+  if (t < 599) return Math.round(40 + (t - 420) * 0.1);
+  if (t < RESET) return Math.round(4 + (t - 599) * (67 / 278)); // 71% às 14:37
+  if (t < 1199) return Math.round(4 + (t - RESET) * 0.12);
+  return Math.round(4 + (t - 1199) * 0.12);
+}
+const nextReset = t => t < 599 ? 599 : t < RESET ? RESET : t < 1199 ? 1199 : 1499;
+const claudeColor = p => p >= 85 ? 'var(--crit)' : p >= 60 ? 'var(--warn)' : 'var(--ok)';
+
+/* ================= render ================= */
+function render(){
+  const t = S.t, dir = t >= prevT ? 1 : -1;
+  const corpOk = S.scene !== 'corp';
+  const quick = firstRender;
+
+  /* relógio */
+  ck.set(fmt(t), dir, quick);
+  $('ck-sr').textContent = fmt(t);
+  $('tout').textContent = fmt(t);
+  const tr = $('t');
+  tr.style.setProperty('--fill', ((t - 420) / 840 * 100) + '%');
+  tr.setAttribute('aria-valuetext', fmt(t));
+
+  renderDia(t, corpOk, quick);
+  renderAgenda(t, corpOk, quick);
+  renderMachine(quick);
+  renderClaude(t, dir, quick);
+
+  prevT = t;
+  firstRender = false;
+  /* a altura da agenda muda com a cena: a luz do cursor remede os widgets */
+  if (!remeasure) remeasure = requestAnimationFrame(() => { remeasure = 0; measure(); });
+}
+let remeasure = 0;
+
+/* ---------- Dia ---------- */
+let heroKey = '', heroLayer = null;
+const tlBlocks = new Map();
+(function buildTimeline(){
+  const dots = $('tldots');
+  for (let m = DAY0; m <= DAY1; m += 30){
+    const i = document.createElement('i');
+    if (m % 60 === 0) i.className = 'h';
+    i.style.left = xPct(m) + '%';
+    dots.appendChild(i);
+  }
+  const box = $('blocks');
+  TODAY.forEach(e => {
+    const b = document.createElement('i');
+    b.className = 'blk';
+    b.style.left = xPct(e.s) + '%';
+    b.style.width = `calc(${(e.e - e.s) / SPAN * 100}% - 2px)`;
+    b.style.minWidth = '6px';
+    b.style.setProperty('--dc', CAL[e.cal].c);
+    box.appendChild(b);
+    tlBlocks.set(e.id, b);
+  });
+  $('reset').style.left = xPct(RESET) + '%';
+})();
+
+function heroModel(t, corpOk){
+  const evs = TODAY.filter(e => corpOk || e.cal !== 'corp');
+  const cur = evs.find(e => e.s <= t && t < e.e);
+  if (cur) return { role: 'agora', ev: cur, left: cur.e - t, prog: (t - cur.s) / (cur.e - cur.s) };
+  const nxt = evs.find(e => e.s > t);
+  if (nxt) return { role: 'prox', ev: nxt, inn: nxt.s - t };
+  const last = evs[evs.length - 1];
+  return { role: 'livre', since: last ? last.e : DAY0 };
+}
+const title = e => S.priv ? 'Compromisso' : e.t;
+
+function buildLayer(m){
+  const el = document.createElement('div');
+  el.className = 'layer ' + m.role;
+  const rec = m.ev && m.ev.rec ? ICON_REC : '';
+  if (m.role === 'agora'){
+    el.innerHTML = `<p class="h-lbl"><i class="dot"></i>Agora</p>
+      <h2 class="h-title"></h2>
+      <p class="h-sub"><span>termina ${fmt(m.ev.e)}, faltam <span class="rl" aria-hidden="true"></span><span class="sr"></span></span>${rec}</p>
+      <div class="bar h-bar"><i class="bar-f"></i><i class="bar-t"></i></div>`;
+  } else if (m.role === 'prox'){
+    el.innerHTML = `<p class="h-lbl"><i class="dot" style="--dc:${CAL[m.ev.cal].c}"></i><span>Próximo, em <span class="rl" aria-hidden="true"></span><span class="sr"></span></span></p>
+      <h2 class="h-title"></h2>
+      <p class="h-sub">${fmt(m.ev.s)} às ${fmt(m.ev.e)}, ${CAL[m.ev.cal].n}${rec}</p>`;
+  } else {
+    el.innerHTML = `<p class="h-lbl"><i class="dot"></i>Livre</p>
+      <h2 class="h-title">Dia livre a partir de ${fmt(m.since)}</h2>
+      <p class="h-sub">Amanhã: ${S.priv ? 'Compromisso' : SAT[0].t}, dia inteiro</p>`;
+  }
+  const t = el.querySelector('.h-title');
+  if (m.ev) t.textContent = title(m.ev);
+  const rl = el.querySelector('.rl');
+  el._roll = rl ? new Roller(rl) : null;
+  return el;
+}
+function updLayer(el, m, dir, quick){
+  if (m.role === 'agora'){
+    el._roll.set(dur(m.left), -dir, quick);
+    el.querySelector('.sr').textContent = dur(m.left);
+    el.querySelector('.h-bar').style.setProperty('--p', m.prog.toFixed(4));
+  } else if (m.role === 'prox'){
+    el._roll.set(dur(m.inn), -dir, quick);
+    el.querySelector('.sr').textContent = dur(m.inn);
+    el.classList.toggle('urgent', m.inn <= 15);
+  }
+}
+
+function renderDia(t, corpOk, quick){
+  const dir = t >= prevT ? 1 : -1;
+  const m = heroModel(t, corpOk);
+  const key = m.role + ':' + (m.ev ? m.ev.id : '') + ':' + (S.priv ? 1 : 0);
+  const hero = $('hero');
+  if (key !== heroKey){
+    const prevRole = heroKey.split(':')[0];
+    const nu = buildLayer(m);
+    updLayer(nu, m, dir, true);
+    const old = heroLayer;
+    hero.querySelectorAll('.layer.leaving').forEach(x => x.remove()); // troca rápida: não acumula saídas
+    if (old){ old.classList.add('leaving'); old.setAttribute('aria-hidden', 'true'); }
+    hero.appendChild(nu);
+    heroLayer = nu; heroKey = key;
+    /* leitor de tela: anuncia só a troca de papel, nunca cada minuto do slider */
+    if (!quick) $('dia-status').textContent = m.role === 'agora' ? `Agora: ${title(m.ev)}, termina ${fmt(m.ev.e)}`
+      : m.role === 'prox' ? `Próximo: ${title(m.ev)}, às ${fmt(m.ev.s)}` : `Dia livre a partir de ${fmt(m.since)}`;
+    if (old){
+      if (quick || reduce){
+        old.remove();
+        if (reduce && !quick) nu.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 140, easing: 'linear' });
+      } else {
+        const f = scrubbing ? .5 : 1;
+        old.getAnimations().forEach(a => a.cancel());
+        old.animate([{ opacity: 1, transform: 'translateY(0)', filter: 'blur(0)' },
+                     { opacity: 0, transform: 'translateY(-6px)', filter: 'blur(2px)' }],
+                    { duration: 160 * f, easing: EASE_OUT, fill: 'forwards' }).onfinish = () => old.remove();
+        nu.animate([{ opacity: 0, transform: 'translateY(8px)', filter: 'blur(4px)' },
+                    { opacity: 1, transform: 'translateY(0)', filter: 'blur(0)' }],
+                   { duration: SP.ui.d * f, easing: SP.ui.e, delay: 50 * f, fill: 'backwards' });
+        /* entrar em AGORA: a luz âmbar acende uma vez (no lugar do pulso 3×) */
+        if (m.role === 'agora' && prevRole !== 'agora' && !scrubbing){
+          document.querySelector('.needle .ng').animate(
+            [{ opacity: .8, transform: 'scale(1)' }, { opacity: 1, transform: 'scale(1.25)' }, { opacity: .8, transform: 'scale(1)' }],
+            { duration: 640, easing: EASE_OUT });
+        }
+      }
+    }
+  } else {
+    updLayer(heroLayer, m, dir, quick);
+  }
+
+  /* botão de vídeo: aceso no AGORA com Meet, ou a ≤10 min do próximo com Meet */
+  const vid = $('vid');
+  const meet = m.ev && m.ev.meet;
+  const lit = meet && (m.role === 'agora' || (m.role === 'prox' && m.inn <= 10));
+  vid.classList.toggle('off', !meet);
+  vid.tabIndex = meet ? 0 : -1;               // invisível não recebe foco
+  vid.toggleAttribute('aria-hidden', !meet);
+  vid.classList.toggle('lit', !!lit);
+  vid.setAttribute('aria-disabled', lit ? 'false' : 'true');
+  vid.setAttribute('aria-label', lit ? 'Entrar na chamada de vídeo' : 'Chamada de vídeo, disponível 10 min antes');
+
+  /* intensidade da luz âmbar na borda */
+  const amb = m.role === 'agora' ? .62 : (m.role === 'prox' && m.inn <= 15) ? .48 : .22;
+  const dia = $('dia');
+  dia.style.setProperty('--amb', amb);
+  dia.style.setProperty('--nx', xPct(t).toFixed(2) + '%');
+
+  /* linha do dia */
+  const nd = $('needle');
+  nd.style.transitionDuration = (quick || reduce) ? '0ms' : scrubbing ? '90ms' : '';
+  nd.style.transitionTimingFunction = scrubbing ? 'linear' : '';
+  nd.style.setProperty('--x', xPct(t).toFixed(3) + '%');
+  TODAY.forEach(e => {
+    const b = tlBlocks.get(e.id);
+    b.classList.toggle('gone', !corpOk && e.cal === 'corp');
+    b.classList.toggle('past', e.e <= t);
+    b.classList.toggle('cur', e.s <= t && t < e.e);
+    b.title = `${fmt(e.s)} às ${fmt(e.e)}, ${title(e)}`;
+  });
+  /* marca da PRÓXIMA renovação dentro da faixa (igual à legenda do Claude); depois das 19:59 a próxima cai fora: fica a última, apagada */
+  const nr = nextReset(t), dentro = nr <= DAY1, alvo = dentro ? nr : 1199;
+  const rs = $('reset');
+  rs.style.left = xPct(alvo) + '%';
+  rs.style.opacity = dentro ? '' : '.4';
+  const txt = dentro ? `Próximo reset da janela do Claude às ${fmt(alvo)}` : `A janela do Claude renovou às ${fmt(alvo)}`;
+  rs.title = txt; rs.setAttribute('aria-label', txt);
+}
+
+/* ---------- Agenda (lista com FLIP) ---------- */
+const rowEls = new Map();
+let lastPriv = S.priv;
+function agendaRows(t, corpOk){
+  const rows = [];
+  if (!corpOk) rows.push({ k: 'err', type: 'err', since: corpSince(t) });
+  rows.push({ k: 'g-hoje', type: 'g', text: 'Hoje' });
+  const evs = TODAY.filter(e => corpOk || e.cal !== 'corp');
+  const up = evs.filter(e => e.e > t);
+  let prevEnd = null;
+  evs.forEach(e => {
+    if (e.e <= t){ prevEnd = Math.max(prevEnd ?? 0, e.e); return; }
+    /* vão livre só entre dois compromissos, inteiro no futuro, de 1h ou mais */
+    if (prevEnd !== null && prevEnd >= t && e.s - prevEnd >= 60){
+      rows.push({ k: 'gap-' + e.id, type: 'gap', text: `livre ${fmt(prevEnd)} às ${fmt(e.s)}, ${durLong(e.s - prevEnd)}` });
+    }
+    rows.push({ k: 'e-' + e.id, type: 'ev', ev: e, now: e.s <= t && t < e.e });
+    prevEnd = e.e;
+  });
+  if (!up.length) rows.push({ k: 'none', type: 'empty', text: 'Nada mais hoje' });
+  rows.push({ k: 'g-sab', type: 'g', text: 'Amanhã, sábado' });
+  SAT.forEach(e => rows.push({ k: 'e-' + e.id, type: 'ev', ev: e }));
+  const mon = MON.filter(e => corpOk || e.cal !== 'corp');
+  if (mon.length){
+    rows.push({ k: 'g-seg', type: 'g', text: 'Segunda, 5/10' });
+    mon.forEach(e => rows.push({ k: 'e-' + e.id, type: 'ev', ev: e }));
+  }
+  return rows;
+}
+function rowHTML(r){
+  if (r.type === 'g') return r.text;
+  if (r.type === 'gap') return `<span class="t" aria-hidden="true"></span><span class="gl">${r.text}</span>`;
+  if (r.type === 'empty') return r.text;
+  if (r.type === 'err') return `<i class="dot"></i><p>Agenda corporativa sem resposta desde ${fmt(r.since)}. <span>Os eventos dela saíram da lista até a próxima sincronização. Gere um novo endereço secreto e rode agenda-sync configurar.</span></p>`;
+  const e = r.ev;
+  const time = e.allday ? '<span class="t wd">dia inteiro</span>' : `<span class="t">${fmt(e.s)}</span>`;
+  const now = r.now ? '<span class="tag"><i class="dot"></i>agora</span>' : '';
+  return `${time}<span class="ti"><i class="dot" style="--dc:${CAL[e.cal].c}"></i><b>${title(e)}</b>${e.rec ? ICON_REC : ''}${now}</span>`;
+}
+function renderAgenda(t, corpOk, quick){
+  const list = $('aglist');
+  const rows = agendaRows(t, corpOk);
+  const animate = !quick && !reduce;
+  const f = scrubbing ? .5 : 1;
+  const lr = list.getBoundingClientRect();
+
+  /* First: posição visual atual (inclui transform em voo) */
+  const first = new Map();
+  if (animate) rowEls.forEach((el, k) => { first.set(k, el.getBoundingClientRect()); });
+  rowEls.forEach(el => el.getAnimations().forEach(a => a.cancel()));
+
+  const keep = new Set(rows.map(r => r.k));
+  /* saídas: fantasma absoluto no lugar antigo, sai sutil */
+  rowEls.forEach((el, k) => {
+    if (keep.has(k)) return;
+    rowEls.delete(k);
+    if (!animate){ el.remove(); return; }
+    const r = first.get(k);
+    el.style.position = 'absolute';
+    el.style.left = (r.left - lr.left) + 'px';
+    el.style.top = (r.top - lr.top) + 'px';
+    el.style.width = r.width + 'px';
+    el.style.pointerEvents = 'none';
+    el.animate([{ opacity: 1, transform: 'translateY(0)' }, { opacity: 0, transform: 'translateY(-4px)' }],
+               { duration: 160 * f, easing: EASE_OUT, fill: 'forwards' }).onfinish = () => el.remove();
+  });
+
+  /* aplica a nova ordem */
+  const privChanged = lastPriv !== S.priv; lastPriv = S.priv;
+  let anchor = null;
+  const entering = [];
+  rows.forEach(r => {
+    let el = rowEls.get(r.k);
+    const html = rowHTML(r);
+    if (!el){
+      el = document.createElement('div');
+      el.className = 'row ' + r.type;
+      if (r.type === 'err') el.setAttribute('role', 'alert');
+      el.innerHTML = html; el._h = html;
+      rowEls.set(r.k, el);
+      entering.push(el);
+    } else if (el._h !== html){
+      el.innerHTML = html; el._h = html;
+      if (privChanged && r.type === 'ev' && animate){
+        el.querySelector('b').animate([{ opacity: 0, filter: 'blur(3px)' }, { opacity: 1, filter: 'blur(0)' }], { duration: 240, easing: EASE_OUT });
+      }
+    }
+    const next = anchor ? anchor.nextSibling : list.firstChild;
+    if (next !== el) list.insertBefore(el, next);
+    anchor = el;
+  });
+
+  /* Last + Invert + Play */
+  if (animate){
+    rows.forEach(r => {
+      const el = rowEls.get(r.k);
+      if (entering.includes(el)) return;
+      const a = first.get(r.k); if (!a) return;
+      const b = el.getBoundingClientRect();
+      const dy = a.top - b.top;
+      if (Math.abs(dy) > .5){
+        el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }],
+                   { duration: SP.ui.d * f, easing: SP.ui.e });
+      }
+    });
+    entering.forEach((el, i) => {
+      el.animate([{ opacity: 0, transform: 'translateY(6px)', filter: 'blur(3px)' },
+                  { opacity: 1, transform: 'translateY(0)', filter: 'blur(0)' }],
+                 { duration: SP.ui.d * f, easing: SP.ui.e, delay: (60 + i * 30) * f, fill: 'backwards' });
+    });
+  }
+
+  $('agfoot').textContent = corpOk ? 'mais 6 eventos até 16/10' : 'mais 2 eventos até 16/10';
+  const corpDot = $('src').querySelector('[data-s="corp"]');
+  corpDot.classList.toggle('bad', !corpOk);
+  const since = fmt(corpSince(t));
+  corpDot.title = corpOk ? 'Corporativa: sincronizada há 3 min' : `Corporativa: sem resposta desde ${since}`;
+  $('src').setAttribute('aria-label', corpOk
+    ? 'Fontes: pessoal, corporativa e feriados sincronizadas'
+    : `Fontes: pessoal e feriados sincronizadas; corporativa sem resposta desde ${since}`);
+}
+
+/* ---------- Máquina ---------- */
+function renderMachine(quick){
+  const load = S.scene === 'carga';
+  const v = load ? { cpu: 96, ram: 88, gpu: 41 } : { cpu: 23, ram: 61, gpu: 12 };
+  ['cpu', 'ram', 'gpu'].forEach(k => {
+    const val = v[k], col = sysColor(val);
+    setRing(R[k].el, val, col ? resolve(col) : neutral(), col ? .55 : 0);
+    const was = parseFloat(R[k].num.str || '0');
+    R[k].num.set(String(val), val >= was ? 1 : -1, quick);
+  });
+  setRing(R.ssd.el, 83, neutral(), 0);
+  $('ramg').textContent = (v.ram / 100 * 15.2).toFixed(1).replace('.', ',') + 'G';
+  $('q-g').style.setProperty('--p', .74);
+  $('q-i').style.setProperty('--p', 4 / 15);
+}
+
+/* ---------- Claude ---------- */
+function renderClaude(t, dir, quick){
+  const w = $('claude');
+  const stale = S.scene === 'stale';
+  const limit = S.scene === 'limite';
+  /* a última medição nunca fica no futuro do horário simulado: antes dela, vale "16 min atrás"
+     sem perder o instante original (voltar ao horário da cena mostra a mesma idade) */
+  const since = S.staleSince != null && S.staleSince <= t - 1 ? S.staleSince : t - 16;
+  let p = limit ? 97 : stale ? claudePct(since) : claudePct(t);
+  const color = stale ? 'var(--stale)' : claudeColor(p);
+  const zoom = !stale && p >= 95;
+  const shown = zoom ? (p - 95) / 5 * 100 : p;   // de 95 em diante: (p-95)/5 da volta
+  setRing(R.cl.el, shown, resolve(color), stale ? 0 : .5, zoom);
+  const was = parseFloat(R.cl.num.str || '0');
+  R.cl.num.set(String(p), p >= was ? 1 : -1, quick);
+  w.classList.toggle('stale', stale);
+  $('cl-age').toggleAttribute('aria-hidden', !stale); // escondida só por opacidade: fora do leitor de tela também
+
+  const leg = $('cl-leg');
+  if (stale){
+    clAge.set('há ' + dur(t - since), 1, quick);
+    leg.innerHTML = `Sem medição nova da bandeja desde <b>${fmt(since)}</b>`;
+  } else {
+    const r = nextReset(t);
+    leg.innerHTML = `5h, conta 4, renova <b>${fmt(r)}</b> (em ${dur(r - t)})` + (zoom ? ', <span style="white-space:nowrap">arco em escala 95–100</span>' : '');
+  }
+  const b5 = $('b6-5'), b7 = $('b6-7');
+  b5.style.setProperty('--p', .34); b5.style.setProperty('--bc', 'var(--ok)');
+  b7.style.setProperty('--p', .90); b7.style.setProperty('--bc', 'var(--crit)');
+}
+
+/* ================= luz do cursor (uma fonte só, acende as bordas) ================= */
+const widgets = [...document.querySelectorAll('.w')];
+let rects = [], px = -9999, py = -9999, raf = 0, spotOn = false;
+const setSpot = on => { if (on !== spotOn){ spotOn = on; root.style.setProperty('--spot', on ? 1 : 0); } };
+const measure = () => { rects = widgets.map(w => w.getBoundingClientRect()); };
+const paint = () => {
+  raf = 0;
+  if (rects.length !== widgets.length) measure();
+  widgets.forEach((w, i) => {
+    w.style.setProperty('--mx', (px - rects[i].left) + 'px');
+    w.style.setProperty('--my', (py - rects[i].top) + 'px');
+  });
+};
+if (matchMedia('(hover: hover) and (pointer: fine)').matches){
+  addEventListener('pointermove', e => {
+    px = e.clientX; py = e.clientY;
+    setSpot(true);
+    if (!raf) raf = requestAnimationFrame(paint);
+  }, { passive: true });
+  root.addEventListener('pointerleave', () => setSpot(false));
+  addEventListener('blur', () => setSpot(false));
+  addEventListener('scroll', () => { measure(); if (!raf) raf = requestAnimationFrame(paint); }, { passive: true });
+  addEventListener('resize', measure);
+}
+
+/* ================= entrada (uma vez, ou ao pedir) ================= */
+const order = [...document.querySelectorAll('.widget')]; // relógio, dia, agenda, máquina, claude
+let entryTimers = [];
+function entrance(){
+  /* rever a entrada no meio de outra: cancela a anterior para não soltar anéis antes da hora */
+  entryTimers.forEach(clearTimeout); entryTimers = [];
+  order.forEach(w => { w.getAnimations().forEach(a => a.cancel()); w.querySelector('.wi').getAnimations().forEach(a => a.cancel()); });
+  hold.forEach(r => { hold.delete(r); const tg = ringTarget.get(r); if (tg) setRing(r, tg.v, tg.color, tg.glow, tg.zoom); });
+  measure();
+  if (reduce){
+    order.forEach(w => w.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'linear' }));
+    return;
+  }
+  document.querySelector('.wall').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 520, easing: 'cubic-bezier(.33,0,.67,1)' });
+  /* anéis seguram em zero até o contêiner aparecer */
+  const ringsOf = w => [...w.querySelectorAll('.ring')];
+  order.forEach(w => ringsOf(w).forEach(r => {
+    hold.add(r);
+    r.style.transition = 'none';
+    r.style.setProperty('--v', 0);
+    r.classList.add('zero');
+    void r.offsetWidth;
+    r.style.transition = '';
+  }));
+  order.forEach((w, i) => {
+    const delay = 140 + i * 70;
+    w.animate([{ opacity: 0, transform: 'translateY(14px) scale(.985)' }, { opacity: 1, transform: 'none' }],
+              { duration: SP.enter.d, easing: SP.enter.e, delay, fill: 'backwards' });
+    const inner = w.querySelector('.wi');
+    inner.animate([{ filter: 'blur(6px)' }, { filter: 'blur(0)' }],
+                  { duration: SP.enter.d * .8, easing: EASE_OUT, delay, fill: 'backwards' });
+    ringsOf(w).forEach((r, j) => entryTimers.push(setTimeout(() => {
+      hold.delete(r);
+      const tg = ringTarget.get(r);
+      if (tg) setRing(r, tg.v, tg.color, tg.glow, tg.zoom);
+    }, delay + 160 + j * 50)));
+  });
+  entryTimers.push(setTimeout(measure, 140 + order.length * 70 + SP.enter.d + 50));
+}
+
+/* ================= controles ================= */
+const range = $('t');
+range.addEventListener('pointerdown', () => { scrubbing = true; });
+const endScrub = () => { if (scrubbing){ scrubbing = false; } };
+addEventListener('pointerup', endScrub);
+addEventListener('pointercancel', endScrub);
+range.addEventListener('input', () => { S.t = +range.value; render(); });
+
+document.querySelectorAll('#scenes .chip').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#scenes .chip').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  S.scene = b.dataset.sc;
+  if (S.scene === 'stale') S.staleSince = S.t - 16;
+  render();
+}));
+document.querySelectorAll('.sw button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.sw button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  S.wp = b.dataset.wp;
+  root.dataset.wp = S.wp;
+  render(); // anéis neutros trocam de tinta com o tema do material
+}));
+$('lock').addEventListener('click', e => {
+  S.priv = !S.priv;
+  e.currentTarget.setAttribute('aria-pressed', String(S.priv));
+  render();
+});
+$('replay').addEventListener('click', entrance);
+$('vid').addEventListener('click', e => { if (e.currentTarget.classList.contains('lit')) e.currentTarget.blur(); });
+
+/* ================= início ================= */
+render();
+entrance();
+})();
+</script>
+</body>
+</html>

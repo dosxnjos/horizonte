@@ -1,0 +1,1322 @@
+<!doctype html>
+<html lang="pt-BR" data-face="escuro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizonte Instrumento</title>
+<link rel="icon" href="data:,">
+<meta name="description" content="Protótipo da direção visual Instrumento do Horizonte: mostradores segmentados, relógio em matriz de pontos, um único ponteiro azulado e motion mecânico disparado por mudança de estado.">
+<style>
+/* ============================================================
+   TOKENS
+   Direção "Instrumento": superfície fosca sólida, monocromia,
+   um acento (aço azulado, cor de ponteiro de relógio), números
+   em matriz de pontos e mono tabular.
+   ============================================================ */
+:root{
+  --mono:"Cascadia Mono","Cascadia Code",Consolas,ui-monospace,monospace;
+  --sans:"Segoe UI Variable Text","Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+  --disp:"Segoe UI Variable Display","Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+
+  /* contrato do anel Claude (não muda entre direções) */
+  --ok:#30A46C; --alerta:#F5A623; --critico:#E5484D; --velho:#747684;
+
+  /* motion */
+  --ease-out:cubic-bezier(.23,1,.32,1);       /* entrada, hover */
+  --ease-dentro:cubic-bezier(.77,0,.175,1);   /* algo que se move dentro do widget */
+  --mola-detent:cubic-bezier(.2,1,.3,1);      /* trocado por linear() de mola via JS */
+  --dur-detent:420ms;
+  --dur-hover:120ms;
+
+  /* forma */
+  --r-obj:8px;   /* widget (o mesmo raio do DWM) */
+  --r-int:3px;   /* tudo dentro do widget */
+}
+:root[data-face="escuro"]{
+  --fundo:#121211;
+  --face:#1B1B1A;
+  --tinta:#ECEAE4;
+  --tinta2:#A6A39C;
+  --tinta3:#8A877F;
+  --fantasma:rgba(236,234,228,.085);
+  --fantasma-txt:rgba(236,234,228,.2);
+  --fio:rgba(255,255,255,.07);
+  --fio-forte:rgba(255,255,255,.14);
+  --contorno:rgba(0,0,0,.45);
+  --contato:rgba(0,0,0,.35);
+  --acento:#6680FF;
+  --sobre-acento:#0B0F24;
+  --neutro-arco:#E2DFD8;
+  --ag-pessoal:#CDB68A;
+  --ag-corporativo:#9FB8AA;
+  --ag-feriados:#C9A0A6;
+  --grao:.07;
+  color-scheme:dark;
+}
+:root[data-face="claro"]{
+  --fundo:#E4E2DC;
+  --face:#F1F0EC;
+  --tinta:#161615;
+  --tinta2:#55534E;
+  --tinta3:#6B6964;
+  --fantasma:rgba(22,22,21,.09);
+  --fantasma-txt:rgba(22,22,21,.2);
+  --fio:rgba(0,0,0,.08);
+  --fio-forte:rgba(0,0,0,.18);
+  --contorno:rgba(0,0,0,.06);
+  --contato:rgba(60,50,40,.14);
+  --acento:#2B48D8;
+  --sobre-acento:#FFFFFF;
+  --neutro-arco:#2A2926;
+  --ag-pessoal:#86683A;
+  --ag-corporativo:#46695A;
+  --ag-feriados:#8B4F59;
+  --grao:.05;
+  color-scheme:light;
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box}
+html{overflow-x:clip;-webkit-text-size-adjust:100%}
+body{
+  margin:0;min-height:100vh;
+  background:var(--fundo);color:var(--tinta);
+  font:400 14px/1.45 var(--sans);
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit}
+p{margin:0}
+:focus-visible{outline:2px solid var(--acento);outline-offset:2px;border-radius:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* papel de parede: dois canvases para trocar com crossfade */
+/* inset+100%: cobre a viewport sem a barra de rolagem (100vw passava dela e criava rolagem lateral) */
+.parede{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0;transition:opacity 450ms var(--ease-out)}
+.parede.oculta{opacity:0}
+
+/* ============================================================
+   CABEÇALHO DA DEMO
+   ============================================================ */
+.cab{
+  position:relative;z-index:1;
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;
+  padding:22px 32px 0;max-width:1264px;margin:0 auto;
+  color:var(--tinta);
+}
+/* texto da demo fica sobre o papel de parede: plaquinha fosca na cor do widget garante contraste em qualquer fundo */
+.cab>*{padding:4px 8px;border-radius:var(--r-int);background:var(--face);box-shadow:inset 0 0 0 1px var(--fio),0 0 0 1px var(--contorno);transition:background-color 300ms var(--ease-out)}
+.cab b{font:600 15px/1.2 var(--disp)}
+.cab span{color:var(--tinta2);font-size:13px}
+.cab .ilus{margin-left:auto}
+
+/* ============================================================
+   MESA (a cena dos widgets)
+   ============================================================ */
+.mesa{
+  position:relative;z-index:1;
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;
+  gap:20px;padding:22px 32px 170px;max-width:1264px;margin:0 auto;
+}
+.col{display:flex;flex-direction:column;gap:20px;min-width:0}
+.col-a{width:340px}
+.col-b{width:440px}
+.col-c{width:380px}
+
+/* ============================================================
+   WIDGET: objeto fosco, hairline única, sem brilho nem sombra larga
+   ============================================================ */
+.w{
+  position:relative;
+  background:var(--face);color:var(--tinta);
+  border-radius:var(--r-obj);
+  padding:18px;
+  box-shadow:inset 0 0 0 1px var(--fio),0 0 0 1px var(--contorno),0 1px 2px var(--contato);
+  transition:background-color 300ms var(--ease-out),color 300ms var(--ease-out),box-shadow var(--dur-hover) var(--ease-out);
+}
+/* grão fosco estático (anodizado), atrás do conteúdo */
+.w::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity:var(--grao);mix-blend-mode:overlay;
+}
+.w>*{position:relative;z-index:1}
+@media (hover:hover) and (pointer:fine){
+  .w:hover{box-shadow:inset 0 0 0 1px var(--fio-forte),0 0 0 1px var(--contorno),0 1px 2px var(--contato)}
+}
+.rotulo{font:600 12px/1.2 var(--sans);color:var(--tinta2);letter-spacing:.01em}
+
+/* entrada: uma vez por sessão (autoteste do aparelho) */
+@keyframes entra-w{from{opacity:0;transform:translateY(8px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+.boot .w{animation:entra-w 460ms var(--ease-out) both;animation-delay:calc(var(--i) * 70ms)}
+
+/* ============================================================
+   1. RELÓGIO: painel de matriz de pontos 25×7
+   ============================================================ */
+.matriz{display:block;width:100%;height:auto}
+.matriz .d{fill:var(--tinta);opacity:var(--d-off,.085);transition:opacity 90ms linear}
+:root[data-face="claro"]{--d-off:.1}
+.matriz .d.on{opacity:1;transition:opacity 170ms var(--ease-out)}
+.rel-pe{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;flex-wrap:wrap}
+.data{font:600 16px/1.2 var(--disp)}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  font:500 12px/1 var(--sans);color:var(--tinta2);
+  padding:5px 7px;border-radius:var(--r-int);
+  box-shadow:inset 0 0 0 1px var(--fio-forte);
+}
+.chip svg{width:8px;height:8px;fill:var(--ag-feriados)}
+.chip .mono{color:var(--tinta)}
+
+/* ============================================================
+   2. DIA
+   ============================================================ */
+.modo{display:flex;gap:16px;position:relative;padding-bottom:7px;width:max-content}
+.modo span{font:500 12px/1.2 var(--sans);color:var(--tinta3);transition:color 200ms var(--ease-out)}
+.modo span.ativo{color:var(--tinta)}
+.modo-marca{
+  position:absolute;left:0;bottom:0;height:2px;width:1px;background:var(--acento);
+  transform-origin:0 50%;
+  transition:transform var(--dur-detent) var(--mola-detent);
+}
+.palco{display:grid;height:152px;margin-top:14px}
+.cena-dia{grid-area:1/1;display:flex;flex-direction:column;gap:8px;min-width:0}
+@keyframes entra-c{from{opacity:0;transform:translateY(8px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+@keyframes sai-c{to{opacity:0;transform:translateY(-6px);filter:blur(2px)}}
+.cena-dia.entra{animation:entra-c 300ms var(--ease-out) 60ms both}
+.cena-dia.sai{animation:sai-c 160ms var(--ease-out) forwards;pointer-events:none}
+.h-topo{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.h-tit{font:600 20px/1.25 var(--disp);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.h-tit.grande{font-size:24px}
+.h-meta{font:400 14px/1.4 var(--sans);color:var(--tinta2)}
+.h-meta svg{display:inline-block;vertical-align:-1px}
+.h-meta svg.gl{margin-right:6px}
+.h-meta svg.rec{margin-left:6px;vertical-align:-2px}
+.h-meta .mono{color:var(--tinta)}
+.h-meta svg.gl{width:8px;height:8px}
+.h-meta svg.rec{width:12px;height:12px;color:var(--tinta3)}
+.h-cont{display:flex;align-items:baseline;gap:6px;color:var(--tinta);transition:color 240ms var(--ease-out)}
+.h-cont .pre,.h-cont .un{font:500 14px/1 var(--sans);color:var(--tinta2)}
+.h-cont .odo{font-size:44px;font-weight:500;letter-spacing:-.02em}
+.h-cont.urgente{color:var(--acento)}
+.h-depois{font:400 13px/1.3 var(--sans);color:var(--tinta3);margin-top:auto}
+.h-livre{font:600 24px/1.2 var(--disp);max-width:16ch}
+.h-livre .mono{font-weight:500}
+
+.prog{display:flex;gap:2px;height:8px;margin-top:4px}
+.prog i{flex:1;border-radius:1px;background:var(--fantasma);transition:background-color 140ms linear}
+.prog i.on{background:var(--acento)}
+
+.video{
+  flex:none;display:inline-flex;align-items:center;gap:7px;
+  height:34px;padding:0 12px 0 10px;border:0;border-radius:var(--r-int);cursor:pointer;
+  background:transparent;color:var(--tinta3);
+  box-shadow:inset 0 0 0 1px var(--fio-forte);
+  font:600 13px/1 var(--sans);
+  transition:background-color 240ms var(--ease-out),color 240ms var(--ease-out),box-shadow 240ms var(--ease-out),transform 100ms var(--ease-out);
+}
+.video svg{width:16px;height:16px}
+.video.aceso{background:var(--acento);color:var(--sobre-acento);box-shadow:none}
+.video:active{transform:scale(.97)}
+
+.linha-dia{margin-top:14px}
+.regua{display:block;width:100%;height:64px;overflow:visible}
+.regua .hr{font:400 10px/1 var(--mono);fill:var(--tinta3)}
+.regua .rd{fill:var(--tinta);opacity:.16;transition:opacity 160ms linear}
+.regua .rd.on{opacity:.62}
+.regua .rb{transition:opacity 200ms linear}
+.regua .rb.passado{opacity:.38}
+.regua .agulha line{stroke:var(--acento);stroke-width:2;stroke-linecap:round}
+.regua .agulha path{fill:var(--acento)}
+.regua .reset line{stroke:var(--tinta3);stroke-width:1}
+.regua .reset .ico{color:var(--tinta2)}
+.regua .reset text{font:400 10px/1 var(--mono);fill:var(--tinta3)}
+
+/* ============================================================
+   3. AGENDA
+   ============================================================ */
+.ag-cab{display:flex;align-items:center;gap:12px}
+.ag-cab h2{margin:0;font:600 14px/1.2 var(--disp);flex:1}
+.saude{display:flex;gap:6px;align-items:center}
+.saude svg{width:8px;height:8px;fill:var(--tinta3);transition:fill 220ms var(--ease-out)}
+.saude svg.falha{fill:var(--critico)}
+.cadeado{
+  width:30px;height:30px;display:grid;place-items:center;border:0;border-radius:var(--r-int);
+  background:transparent;color:var(--tinta2);cursor:pointer;
+  transition:background-color var(--dur-hover) var(--ease-out),color var(--dur-hover) var(--ease-out),transform 100ms var(--ease-out);
+}
+.cadeado svg{width:16px;height:16px}
+.cadeado[aria-pressed="true"]{color:var(--acento);box-shadow:inset 0 0 0 1px var(--acento)}
+.cadeado:active{transform:scale(.97)}
+@media (hover:hover) and (pointer:fine){.cadeado:hover{background:var(--fantasma)}}
+
+.aviso{
+  margin-top:12px;padding:10px 12px;border-radius:var(--r-int);
+  box-shadow:inset 0 0 0 1px color-mix(in oklch,var(--critico) 55%,transparent);
+  font:400 13px/1.4 var(--sans);color:var(--tinta);
+  display:flex;gap:9px;
+}
+.aviso svg{flex:none;width:8px;height:8px;margin-top:6px;fill:var(--critico)}
+@keyframes entra-av{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.aviso[hidden]{display:none}
+.aviso.mostra{animation:entra-av 220ms var(--ease-out) both}
+
+.lista{list-style:none;margin:14px 0 0;padding:0;position:relative}
+.lista li{display:grid;grid-template-columns:46px 12px 1fr auto;align-items:center;column-gap:8px;min-height:30px}
+.lista .g{display:block;min-height:0;padding:12px 0 4px;font:600 12px/1.2 var(--sans);color:var(--tinta2)}
+.lista .g:first-child{padding-top:2px}
+.lista .hora{font:400 13px/1 var(--mono);font-variant-numeric:tabular-nums;color:var(--tinta2)}
+.lista .hora.dia-todo{font:400 11px/1.1 var(--sans);color:var(--tinta3)}
+.lista .gl{width:8px;height:8px}
+.lista .tit{font:400 14px/1.3 var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.lista .rec{width:12px;height:12px;color:var(--tinta3)}
+/* passado: texto cai para tinta3 (≥4,5:1 nas duas faces); só glifo e ♻ esmaecem */
+.lista .ev .tit,.lista .ev .hora{transition:color 200ms linear}
+.lista .ev .gl,.lista .ev .rec{transition:opacity 200ms linear}
+.lista .ev.passado .tit,.lista .ev.passado .hora{color:var(--tinta3)}
+.lista .ev.passado .gl,.lista .ev.passado .rec{opacity:.45}
+.lista .ev.em-curso .hora{color:var(--acento)}
+.lista .vao{min-height:26px}
+.lista .vao .fio-v{grid-column:2;justify-self:center;width:1px;height:18px;background:repeating-linear-gradient(var(--tinta3) 0 2px,transparent 2px 5px)}
+.lista .vao .txt{grid-column:3 / 5;font:400 12px/1.2 var(--sans);color:var(--tinta3)}
+.lista .agora-l{min-height:14px}
+.lista .agora-l .hora{color:var(--acento);font-size:11px}
+.lista .agora-l .fio-a{grid-column:2 / 5;height:2px;border-radius:1px;background:var(--acento)}
+.ag-pe{margin-top:14px;font:400 12px/1.2 var(--sans);color:var(--tinta3)}
+
+@keyframes entra-l{from{opacity:0;transform:translateY(6px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+@keyframes sai-l{to{opacity:0;transform:translateY(-4px);filter:blur(2px)}}
+.boot .lista>li{animation:entra-l 320ms var(--ease-out) both;animation-delay:calc(160ms + var(--k,8) * 35ms)}
+.lista>li.entrando{animation:entra-l 280ms var(--ease-out) 80ms both}
+.lista>li.saindo{animation:sai-l 170ms var(--ease-out) forwards;pointer-events:none}
+.troca{animation:troca-t 220ms var(--ease-out)}
+@keyframes troca-t{from{opacity:.2;filter:blur(3px)}to{opacity:1;filter:none}}
+
+/* ============================================================
+   4 e 5. MOSTRADORES (máquina e Claude)
+   ============================================================ */
+.mostradores{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.mostr{margin:0;display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0}
+.dial{position:relative;display:grid;place-items:center;color:var(--neutro-arco);transition:color 240ms var(--ease-out)}
+.dial .dial-svg{display:block}
+.dial .trilho{stroke:var(--fantasma)}
+.dial .arco{stroke:currentColor}
+.dial .marca{stroke:var(--tinta3);stroke-width:1}
+.dial .centro{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
+.dial .num{display:flex;align-items:baseline;color:var(--tinta);transition:color 240ms var(--ease-out)}
+.dial .num .odo{font-size:16px;font-weight:500}
+.dial .num small{font:400 9px/1 var(--mono);color:var(--tinta3);margin-left:1px}
+.dial[data-nivel="alerta"]{color:var(--alerta)}
+.dial[data-nivel="critico"]{color:var(--critico)}
+.mostr figcaption{text-align:center;display:flex;flex-direction:column;gap:2px}
+.mostr figcaption b{font:600 12px/1.2 var(--sans);color:var(--tinta2)}
+.mostr figcaption span{font:400 11px/1.2 var(--mono);color:var(--tinta3);white-space:nowrap}
+
+.cotas{display:flex;flex-direction:column;gap:12px;margin-top:18px}
+.cota-txt{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px;font:400 12px/1.2 var(--sans);color:var(--tinta2)}
+.cota-txt b{font-weight:600;color:var(--tinta)}
+.cota-txt .mono{font-size:11px}
+.segbar{display:flex;gap:2px;height:6px}
+.segbar i{flex:1;border-radius:1px;background:var(--fantasma);transition:background-color 140ms linear}
+.segbar i.on{background:var(--cor-seg,var(--neutro-arco))}
+
+.claude-grade{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;margin-top:12px}
+.dial.grande .num .odo{font-size:34px;letter-spacing:-.02em}
+.dial.grande .num small{font-size:12px}
+.dial.grande .sub{font:400 10px/1 var(--mono);color:var(--tinta3);margin-top:4px;text-align:center}
+.dial.grande .centro>div{display:flex;flex-direction:column;align-items:center}
+.dial[data-c="ok"]{color:var(--ok)}
+.dial[data-c="alerta"]{color:var(--alerta)}
+.dial[data-c="critico"]{color:var(--critico)}
+.dial[data-c="velho"]{color:var(--velho)}
+.dial[data-c="velho"] .num{color:var(--velho)}
+.dial .zoom-ponto{fill:var(--critico);opacity:0;transition:opacity 200ms var(--ease-out)}
+.dial.zoom .zoom-ponto{opacity:1}
+.claude-info{display:flex;flex-direction:column;gap:8px;min-width:0}
+.leg{font:400 14px/1.4 var(--sans);color:var(--tinta);text-wrap:pretty}
+.leg .mono{font-size:13px}
+.idade,.escala{font:400 12px/1.3 var(--sans);color:var(--tinta3);display:flex;align-items:center;gap:6px}
+.idade[hidden],.escala[hidden]{display:none}
+.idade i,.escala i{width:6px;height:6px;border-radius:50%;background:var(--velho);flex:none}
+.escala i{background:var(--critico)}
+@keyframes entra-n{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.idade:not([hidden]),.escala:not([hidden]){animation:entra-n 220ms var(--ease-out) both}
+.inativa{margin-top:18px;display:flex;flex-direction:column;gap:8px}
+.inativa .rotulo{margin-bottom:2px}
+.barra-l{display:grid;grid-template-columns:22px 1fr 34px;align-items:center;gap:10px;font:400 11px/1 var(--mono);color:var(--tinta3)}
+.barra-l .v{text-align:right;color:var(--tinta2)}
+
+/* ============================================================
+   CONTROLES DA DEMONSTRAÇÃO (fora dos widgets)
+   ============================================================ */
+.ctl{
+  position:fixed;z-index:5;left:50%;bottom:14px;transform:translateX(-50%);
+  width:min(1200px,calc(100vw - 32px));
+  /* sólido como os widgets: a 94% o texto da agenda vazava por trás no celular */
+  background:var(--face);
+  color:var(--tinta);
+  border-radius:var(--r-obj);
+  box-shadow:inset 0 0 0 1px var(--fio-forte),0 0 0 1px var(--contorno),0 2px 6px var(--contato);
+  padding:10px 14px 12px;
+  display:grid;grid-template-columns:1fr auto;grid-template-areas:"a c" "b b";gap:8px 16px;align-items:center;
+  transition:background-color 300ms var(--ease-out);
+}
+.ctl-l1{grid-area:a;display:flex;align-items:center;gap:12px;min-width:0}
+.ctl-l3{grid-area:c;display:flex;gap:6px}
+.ctl-rot{font:600 12px/1 var(--sans);color:var(--tinta2)}
+.ctl output{font:500 15px/1 var(--mono);min-width:5ch}
+.faixa{position:relative;flex:1;height:28px}
+.faixa-marcas{position:absolute;left:6px;right:6px;top:7px;height:14px;pointer-events:none;
+  background:
+    repeating-linear-gradient(90deg,var(--tinta3) 0 1px,transparent 1px calc(100% / 14)) 0 0/100% 14px no-repeat,
+    repeating-linear-gradient(90deg,var(--fio-forte) 0 1px,transparent 1px calc(100% / 56)) 0 4px/100% 6px no-repeat;
+  opacity:.8}
+.faixa input{position:absolute;inset:0;width:100%;height:28px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
+.faixa input::-webkit-slider-runnable-track{height:28px;background:transparent}
+.faixa input::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:28px;border-radius:2px;background:var(--acento);box-shadow:0 0 0 2px var(--face)}
+.faixa input::-moz-range-track{height:28px;background:transparent}
+.faixa input::-moz-range-thumb{width:12px;height:28px;border:0;border-radius:2px;background:var(--acento);box-shadow:0 0 0 2px var(--face)}
+.ctl-l2{grid-area:b;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.grupo{display:flex;align-items:center;gap:6px}
+.grupo+.grupo{padding-left:14px;box-shadow:inset 1px 0 0 var(--fio-forte)}
+.grupo .ctl-rot{margin-right:2px}
+.bt{
+  height:28px;padding:0 10px;border:0;border-radius:var(--r-int);cursor:pointer;white-space:nowrap;
+  background:transparent;color:var(--tinta2);box-shadow:inset 0 0 0 1px var(--fio-forte);
+  font:500 12px/1 var(--sans);
+  display:inline-flex;align-items:center;gap:6px;
+  transition:background-color var(--dur-hover) var(--ease-out),color var(--dur-hover) var(--ease-out),transform 100ms var(--ease-out);
+}
+.bt[aria-pressed="true"]{background:var(--tinta);color:var(--face);box-shadow:none}
+.bt:active{transform:scale(.97)}
+@media (hover:hover) and (pointer:fine){.bt:not([aria-pressed="true"]):hover{background:var(--fantasma);color:var(--tinta)}}
+.bt .amostra{width:12px;height:12px;border-radius:2px;box-shadow:inset 0 0 0 1px rgba(127,127,127,.4)}
+
+/* ============================================================
+   RESPONSIVO
+   ============================================================ */
+@media (max-width:1263px){ .col-c{width:440px} }
+@media (max-width:820px){
+  .cab{padding:18px 16px 0}
+  .cab .ilus{margin-left:0}
+  .mesa{padding:16px 16px 190px;flex-direction:column;align-items:stretch;gap:16px}
+  .col{display:contents}
+  .col-a,.col-b,.col-c{width:auto}
+  #w-relogio{order:1} #w-dia{order:2} #w-agenda{order:3} #w-maquina{order:4} #w-claude{order:5}
+  .ctl{left:0;right:0;bottom:0;transform:none;width:auto;border-radius:var(--r-obj) var(--r-obj) 0 0;padding:10px 16px calc(12px + env(safe-area-inset-bottom))}
+  .ctl{grid-template-columns:1fr;grid-template-areas:"a" "b" "c"}
+  /* folga vertical para o anel de foco não ser cortado pelo overflow da faixa rolável */
+  .ctl-l2{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:-4px -16px;padding:4px 16px 6px}
+  .ctl-l2::-webkit-scrollbar{display:none}
+}
+@media (max-width:400px){
+  .w{padding:16px}
+  .h-cont .odo{font-size:38px}
+  .claude-grade{gap:14px}
+}
+
+/* ============================================================
+   MENOS MOVIMENTO (prefers-reduced-motion ou botão da demo)
+   Fica só crossfade curto de opacidade e cor; sai tudo que se desloca.
+   ============================================================ */
+@keyframes so-fade{from{opacity:0}to{opacity:1}}
+@keyframes so-fade-sai{to{opacity:0}}
+.rm .boot .w,.rm .boot .lista>li{animation:none}
+.rm .cena-dia.entra,.rm .lista>li.entrando,.rm .aviso.mostra,.rm .idade:not([hidden]),.rm .escala:not([hidden]){animation:so-fade 140ms linear both}
+.rm .cena-dia.sai,.rm .lista>li.saindo{animation:so-fade-sai 100ms linear forwards}
+.rm .troca{animation:so-fade 140ms linear}
+.rm .odo-fita,.rm .modo-marca,.rm .bt,.rm .video,.rm .cadeado{transition-property:background-color,color,box-shadow,opacity}
+.rm .matriz .d{transition:opacity 100ms linear!important;transition-delay:0s!important}
+.rm .parede{transition:none}
+@media (prefers-reduced-motion:reduce){
+  .boot .w,.boot .lista>li{animation:none}
+}
+
+/* odômetro (dígitos que rolam) */
+.odo{display:inline-flex;font-family:var(--mono);font-variant-numeric:tabular-nums;line-height:1}
+.odo-vis{display:inline-flex}
+.odo-col{display:inline-block;height:1.1em;overflow:hidden;
+  -webkit-mask-image:linear-gradient(transparent,#000 16%,#000 84%,transparent);
+          mask-image:linear-gradient(transparent,#000 16%,#000 84%,transparent)}
+.odo-fita{display:flex;flex-direction:column;transition:transform var(--dur-detent) var(--mola-detent)}
+.odo-fita span{display:block;height:1.1em;line-height:1.1em;text-align:center}
+.odo-col.fantasma{color:var(--fantasma-txt);transition:color 200ms linear}
+</style>
+</head>
+<body class="boot">
+<canvas class="parede" id="parede-a" aria-hidden="true"></canvas>
+<canvas class="parede oculta" id="parede-b" aria-hidden="true"></canvas>
+
+<header class="cab">
+  <b>Horizonte</b>
+  <span>direção Instrumento: mostradores, matriz de pontos e um ponteiro de aço azulado</span>
+  <span class="ilus">dados ilustrativos</span>
+</header>
+
+<main class="mesa" id="mesa">
+  <div class="col col-a">
+    <!-- 1. RELÓGIO -->
+    <section class="w" id="w-relogio" style="--i:0" aria-label="Relógio">
+      <p class="sr" id="hora-sr" aria-live="off">14:37</p>
+      <svg class="matriz" id="matriz" aria-hidden="true"></svg>
+      <div class="rel-pe">
+        <p class="data">sexta, 2 de outubro</p>
+        <span class="chip"><svg viewBox="0 0 8 8" aria-hidden="true"><path d="M4 .3 7.7 4 4 7.7 .3 4z"/></svg>feriado seg <span class="mono">12/10</span></span>
+      </div>
+    </section>
+
+    <!-- 4. MÁQUINA -->
+    <section class="w" id="w-maquina" style="--i:3" aria-label="Máquina">
+      <p class="rotulo">máquina</p>
+      <div class="mostradores">
+        <figure class="mostr"><div class="dial" id="d-cpu"></div><figcaption><b>cpu</b><span id="det-cpu">&nbsp;</span></figcaption></figure>
+        <figure class="mostr"><div class="dial" id="d-ram"></div><figcaption><b>ram</b><span id="det-ram">9,3G</span></figcaption></figure>
+        <figure class="mostr"><div class="dial" id="d-gpu"></div><figcaption><b>gpu</b><span id="det-gpu">&nbsp;</span></figcaption></figure>
+        <figure class="mostr"><div class="dial" id="d-ssd"></div><figcaption><b>c:</b><span>80G livres</span></figcaption></figure>
+      </div>
+      <div class="cotas">
+        <div class="cota"><div class="cota-txt"><b>drive G</b><span>26 de 100 GB livres</span></div><div class="segbar" id="cota-g" data-uso=".74" role="img" aria-label="drive G, 74% usado"></div></div>
+        <div class="cota"><div class="cota-txt"><b>drive I</b><span>11 de 15 GB livres</span></div><div class="segbar" id="cota-i" data-uso=".267" role="img" aria-label="drive I, 27% usado"></div></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="col col-b">
+    <!-- 2. DIA -->
+    <section class="w" id="w-dia" style="--i:1" aria-label="Dia">
+      <div class="modo" id="modo" aria-hidden="true">
+        <span data-m="agora">agora</span><span data-m="proximo">próximo</span><span data-m="livre">livre</span>
+        <i class="modo-marca" id="modo-marca"></i>
+      </div>
+      <p class="sr" id="dia-sr" aria-live="polite"></p>
+      <div class="palco" id="palco"></div>
+      <div class="linha-dia"><svg class="regua" id="regua" role="img" aria-label="Linha do dia das 7h às 21h"></svg></div>
+    </section>
+
+    <!-- 5. CLAUDE -->
+    <section class="w" id="w-claude" style="--i:4" aria-label="Uso do Claude">
+      <p class="rotulo">claude</p>
+      <div class="claude-grade">
+        <div class="dial grande" id="d-claude"></div>
+        <div class="claude-info">
+          <p class="leg" id="claude-leg">5h, conta 4, renova 14:59 (em 22 min)</p>
+          <p class="idade" id="claude-idade" hidden><i></i><span></span></p>
+          <p class="escala" id="claude-escala" hidden><i></i><span>escala 95 a 100: cada volta vale 5 pontos</span></p>
+        </div>
+      </div>
+      <div class="inativa">
+        <p class="rotulo">conta 6</p>
+        <div class="barra-l"><span>5h</span><div class="segbar" id="c6-5h"></div><span class="v" id="c6-5h-v">18%</span></div>
+        <div class="barra-l"><span>7d</span><div class="segbar" id="c6-7d"></div><span class="v" id="c6-7d-v">90%</span></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="col col-c">
+    <!-- 3. AGENDA -->
+    <section class="w" id="w-agenda" style="--i:2" aria-label="Agenda">
+      <div class="ag-cab">
+        <h2>próximos 14 dias</h2>
+        <div class="saude" id="saude"></div>
+        <button class="cadeado" id="cadeado" aria-pressed="false" aria-label="Modo privado" title="Modo privado: esconde os títulos"></button>
+      </div>
+      <div class="aviso" id="aviso" hidden><svg viewBox="0 0 8 8" aria-hidden="true"><rect x=".5" y=".5" width="7" height="7" rx="1"/></svg><p>A agenda corporativa não responde desde <span class="mono" id="aviso-desde">13:05</span>. Os eventos dela saíram da lista até a conexão voltar; reconecte a fonte nas configurações do Horizonte.</p></div>
+      <ol class="lista" id="lista"></ol>
+      <p class="ag-pe" id="ag-pe">mais 6 eventos até 16/10</p>
+    </section>
+  </div>
+</main>
+
+<aside class="ctl" aria-label="Controles da demonstração">
+  <div class="ctl-l1">
+    <label for="hora" class="ctl-rot">horário</label>
+    <output id="hora-out" for="hora">14:37</output>
+    <div class="faixa"><div class="faixa-marcas" aria-hidden="true"></div><input id="hora" type="range" min="420" max="1260" step="1" value="877" aria-valuetext="14:37"></div>
+  </div>
+  <div class="ctl-l2">
+    <div class="grupo" role="group" aria-label="Cena">
+      <button class="bt" data-cena="normal" aria-pressed="true">Dia normal</button>
+      <button class="bt" data-cena="carga" aria-pressed="false">PC sob carga</button>
+      <button class="bt" data-cena="velho" aria-pressed="false">Bandeja sem medição nova</button>
+      <button class="bt" data-cena="corp" aria-pressed="false">Agenda corporativa falhando</button>
+      <button class="bt" data-cena="limite" aria-pressed="false">Claude no limite</button>
+    </div>
+    <div class="grupo" role="group" aria-label="Papel de parede">
+      <span class="ctl-rot">fundo</span>
+      <button class="bt" data-parede="grafite" aria-pressed="true"><span class="amostra" style="background:#1d1d1b"></span>Grafite</button>
+      <button class="bt" data-parede="gesso" aria-pressed="false"><span class="amostra" style="background:#e6e3dc"></span>Gesso</button>
+      <button class="bt" data-parede="ocre" aria-pressed="false"><span class="amostra" style="background:#86642c"></span>Ocre</button>
+    </div>
+  </div>
+  <div class="ctl-l3">
+    <button class="bt" id="bt-rm" aria-pressed="false">Menos movimento</button>
+    <button class="bt" id="bt-rever">Rever entrada</button>
+  </div>
+</aside>
+
+<script>
+(()=>{
+'use strict';
+/* ============================================================
+   UTILITÁRIOS
+   ============================================================ */
+const $=(s,r=document)=>r.querySelector(s);
+const NS='http://www.w3.org/2000/svg';
+const sv=(tag,attrs={},pai)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(pai)pai.appendChild(e);return e};
+const hm=m=>{m=((m%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
+const dur=m=>{const h=Math.floor(m/60),r=m%60;return h?(r?`${h}h${String(r).padStart(2,'0')}`:`${h}h`):`${r} min`};
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const emTexto=m=>{const h=Math.floor(m/60),r=m%60;return h?(r?`${h} h ${r} min`:`${h} h`):`${m} min`};
+
+/* movimento reduzido: preferência do sistema OU botão da demo */
+const mq=matchMedia('(prefers-reduced-motion: reduce)');
+let rmManual=false;
+const reduz=()=>mq.matches||rmManual;
+const aplicaRM=()=>document.documentElement.classList.toggle('rm',reduz());
+mq.addEventListener?.('change',aplicaRM);aplicaRM();
+
+/* cubic-bezier avaliada em JS (para tweens do anel) */
+function bez(x1,y1,x2,y2){
+  const cx=3*x1,bx=3*(x2-x1)-cx,ax=1-cx-bx,cy=3*y1,by=3*(y2-y1)-cy,ay=1-cy-by;
+  const X=u=>((ax*u+bx)*u+cx)*u,Y=u=>((ay*u+by)*u+cy)*u,dX=u=>(3*ax*u+2*bx)*u+cx;
+  return t=>{let u=t;for(let i=0;i<8;i++){const d=dX(u);if(Math.abs(d)<1e-6)break;u-=(X(u)-t)/d}return Y(clamp(u,0,1))};
+}
+const easeDentro=bez(.77,0,.175,1);
+
+/* mola -> CSS linear(): rigidez 520, amortecimento 0,78 (detent mecânico, ~2% de overshoot) */
+function molaLinear(k,z){
+  const w=Math.sqrt(k),wd=w*Math.sqrt(Math.max(1e-6,1-z*z));
+  const pos=z<1?t=>1-Math.exp(-z*w*t)*(Math.cos(wd*t)+(z*w/wd)*Math.sin(wd*t)):t=>1-Math.exp(-w*t)*(1+w*t);
+  let T=1;for(let t=0;t<3;t+=.001){const env=z<1?Math.exp(-z*w*t)*(1+z*w/wd):Math.exp(-w*t)*(1+w*t);if(env<.003){T=t;break}}
+  const n=40,p=[];for(let i=0;i<=n;i++)p.push(+pos(T*i/n).toFixed(4));p[n]=1;
+  return{css:`linear(${p.join(', ')})`,ms:Math.round(T*1000)};
+}
+try{
+  if(CSS.supports('transition-timing-function','linear(0, 1)')){
+    const m=molaLinear(520,.78);
+    document.documentElement.style.setProperty('--mola-detent',m.css);
+    document.documentElement.style.setProperty('--dur-detent',m.ms+'ms');
+  }
+}catch(e){}
+
+/* laço de animação que só roda enquanto algo se move (nada em loop) */
+const vivos=new Set();let raf=0,tAnt=0;
+function quadro(ts){
+  const dt=Math.min(.032,tAnt?(ts-tAnt)/1000:.016);tAnt=ts;
+  for(const a of [...vivos]){if(a.passo(dt,ts))vivos.delete(a)}
+  if(vivos.size)raf=requestAnimationFrame(quadro);else{raf=0;tAnt=0}
+}
+const anima=a=>{vivos.add(a);if(!raf)raf=requestAnimationFrame(quadro)};
+
+/* ============================================================
+   ODÔMETRO: só os dígitos que mudam rolam; zero à esquerda fica fantasma
+   ============================================================ */
+class Odo{
+  constructor(el,{min=1}={}){
+    this.el=el;this.min=min;this.fitas=[];
+    el.classList.add('odo');
+    this.sr=document.createElement('span');this.sr.className='sr';
+    this.vis=document.createElement('span');this.vis.className='odo-vis';this.vis.setAttribute('aria-hidden','true');
+    el.append(this.sr,this.vis);
+  }
+  set(n,instant=false){
+    n=Math.max(0,Math.round(n));
+    const real=String(n),s=real.padStart(this.min,'0');
+    this.sr.textContent=real;
+    if(this.fitas.length!==s.length){
+      this.vis.textContent='';
+      this.fitas=[...s].map(()=>{
+        const col=document.createElement('span');col.className='odo-col';
+        const f=document.createElement('span');f.className='odo-fita';
+        f.innerHTML='0123456789'.split('').map(d=>`<span>${d}</span>`).join('');
+        col.appendChild(f);this.vis.appendChild(col);return f;
+      });
+      instant=true;
+    }
+    const seco=instant||reduz();
+    [...s].forEach((ch,i)=>{
+      const f=this.fitas[i];
+      if(seco)f.style.transition='none';
+      f.style.transform=`translateY(${-(+ch)*10}%)`;
+      f.parentElement.classList.toggle('fantasma',i<s.length-real.length);
+      if(seco){void f.offsetHeight;f.style.transition=''}
+    });
+  }
+}
+
+/* ============================================================
+   MOSTRADOR: anel segmentado (máscara de arco sobre segmentos)
+   ============================================================ */
+let nDial=0;
+class Mostrador{
+  constructor(host,{tam,esp,n,pad=4}){
+    this.host=host;this.id='mk'+(++nDial);
+    const c=tam/2,r=c-esp/2-pad;this.c=c;this.r=r;this.esp=esp;this.C=2*Math.PI*r;
+    const svg=sv('svg',{viewBox:`0 0 ${tam} ${tam}`,width:tam,height:tam,class:'dial-svg','aria-hidden':'true'});
+    const seg=this.C/n,gap=Math.max(1.5,seg*.3);
+    const defs=sv('defs',{},svg);
+    const mask=sv('mask',{id:this.id,maskUnits:'userSpaceOnUse',x:0,y:0,width:tam,height:tam},defs);
+    this.mc=sv('circle',{cx:c,cy:c,r,fill:'none',stroke:'#fff','stroke-width':esp+2,transform:`rotate(-90 ${c} ${c})`,'stroke-dasharray':`0 ${this.C}`},mask);
+    const base={cx:c,cy:c,r,fill:'none','stroke-width':esp,'stroke-dasharray':`${(seg-gap).toFixed(3)} ${gap.toFixed(3)}`,'stroke-dashoffset':(-gap/2).toFixed(3),transform:`rotate(-90 ${c} ${c})`};
+    sv('circle',{...base,class:'trilho'},svg);
+    sv('circle',{...base,class:'arco',mask:`url(#${this.id})`},svg);
+    this.gm=sv('g',{},svg);
+    this.svg=svg;
+    host.appendChild(svg);
+    const centro=document.createElement('div');centro.className='centro';host.appendChild(centro);
+    this.centro=centro;
+    this.x=0;this.v=0;this.alvoF=0;this.modo='mola';this.k=380;
+    this.desenha();
+  }
+  marcas(lista){ /* graduações fora do anel: [{f, cor, len}] */
+    this.gm.textContent='';
+    const r1=this.r+this.esp/2+1.5;
+    for(const m of lista){
+      const a=m.f*2*Math.PI-Math.PI/2,r2=r1+(m.len||3);
+      sv('line',{x1:this.c+r1*Math.cos(a),y1:this.c+r1*Math.sin(a),x2:this.c+r2*Math.cos(a),y2:this.c+r2*Math.sin(a),class:'marca',style:m.cor?`stroke:${m.cor}`:''},this.gm);
+    }
+  }
+  desenha(){this.mc.setAttribute('stroke-dasharray',`${(clamp(this.x,0,1)*this.C).toFixed(2)} ${this.C.toFixed(2)}`)}
+  alvo(f,{modo='mola',k=380,durMs=620}={}){
+    f=clamp(f,0,1);this.alvoF=f;
+    if(reduz()){this.x=f;this.v=0;this.desenha();vivos.delete(this);return}
+    this.modo=modo;this.k=k;
+    if(modo==='recolhe')this.tw={de:this.x,para:f,t0:null,dur:durMs};
+    anima(this);
+  }
+  salta(f){this.x=f;this.v=0;this.alvoF=f;vivos.delete(this);this.desenha()}
+  passo(dt,ts){
+    if(this.modo==='recolhe'){
+      if(this.tw.t0==null)this.tw.t0=ts;
+      const p=Math.min(1,(ts-this.tw.t0)/this.tw.dur);
+      this.x=this.tw.de+(this.tw.para-this.tw.de)*easeDentro(p);this.desenha();
+      if(p>=1){this.modo='mola';this.v=0;return true}
+      return false;
+    }
+    /* mola criticamente amortecida: dado não quica */
+    const k=this.k,c=2*Math.sqrt(k);
+    this.v+=(-k*(this.x-this.alvoF)-c*this.v)*dt;this.x+=this.v*dt;this.desenha();
+    if(Math.abs(this.x-this.alvoF)<.0008&&Math.abs(this.v)<.003){this.x=this.alvoF;this.v=0;this.desenha();return true}
+    return false;
+  }
+}
+
+/* barra segmentada */
+function segbar(el,n){el.textContent='';for(let i=0;i<n;i++)el.appendChild(document.createElement('i'));return [...el.children]}
+function acendeBar(segs,frac,{cor,atrasoBase=0,cascata=false}={}){
+  const lit=Math.round(clamp(frac,0,1)*segs.length);
+  segs.forEach((s,i)=>{
+    s.style.transitionDelay=cascata&&!reduz()?`${atrasoBase+i*9}ms`:'0ms';
+    s.classList.toggle('on',i<lit);
+  });
+  if(cor!==undefined)segs[0]?.parentElement.style.setProperty('--cor-seg',cor);
+}
+
+/* ============================================================
+   DADOS ILUSTRATIVOS
+   ============================================================ */
+const AG={pessoal:'circ',corporativo:'quad',feriados:'los'};
+const NOME_AG={pessoal:'pessoal',corporativo:'corporativo',feriados:'feriados'};
+const forma=(ag,cls='gl')=>{
+  const f=AG[ag],c=`var(--ag-${ag})`;
+  if(f==='circ')return `<svg class="${cls}" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="3.5" fill="${c}"/></svg>`;
+  if(f==='quad')return `<svg class="${cls}" viewBox="0 0 8 8" aria-hidden="true"><rect x=".5" y=".5" width="7" height="7" rx="1" fill="${c}"/></svg>`;
+  return `<svg class="${cls}" viewBox="0 0 8 8" aria-hidden="true"><path d="M4 .3 7.7 4 4 7.7 .3 4z" fill="${c}"/></svg>`;
+};
+const ICO_REC=`<svg class="rec" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-label="recorrente" role="img"><path d="M10 6a4 4 0 0 1-6.9 2.8M2 6a4 4 0 0 1 6.9-2.8"/><path d="M9.2 1.6v1.8H7.4M2.8 10.4V8.6h1.8"/></svg>`;
+const ICO_CAM=`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="4" width="9" height="8" rx="1.5"/><path d="M10.5 7l4-2.2v6.4l-4-2.2z"/></svg>`;
+const ICO_CAD_F=`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>`;
+const ICO_CAD_A=`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.9-.7"/></svg>`;
+
+const HOJE=[
+  {id:'daily',ini:540,fim:555,t:'Daily do time',ag:'corporativo',rec:true},
+  {id:'bi',ini:630,fim:690,t:'Revisão do BI',ag:'corporativo'},
+  {id:'um',ini:900,fim:930,t:'1:1 semanal',ag:'corporativo',rec:true,meet:true},
+  {id:'dent',ini:1050,fim:1110,t:'Dentista',ag:'pessoal'},
+];
+const DEPOIS=[
+  {g:'amanhã, sábado',k:'sab',evs:[{id:'aniv',dia:true,t:'Aniversário',ag:'pessoal',rec:true}]},
+  {g:'segunda, 5/10',k:'seg',evs:[{id:'daily2',ini:540,t:'Daily do time',ag:'corporativo',rec:true},{id:'comite',ini:600,t:'Comitê semanal',ag:'corporativo'}]},
+];
+const RESET_CLAUDE=899; /* 14:59 */
+
+const S={t:877,cena:'normal',privado:false,parede:'grafite',booting:true};
+const corpFora=()=>S.cena==='corp';
+/* início da falha: 13:05, ou 20 min antes do horário do slider se ele estiver antes disso (nunca no futuro) */
+const corpDesde=()=>Math.min(785,S.t-20);
+const evHoje=()=>HOJE.filter(e=>!(corpFora()&&e.ag==='corporativo'));
+const titulo=e=>S.privado?'Compromisso':e.t;
+
+/* ============================================================
+   1. RELÓGIO EM MATRIZ DE PONTOS
+   ============================================================ */
+const GL={
+  0:['.###.','#...#','#...#','#...#','#...#','#...#','.###.'],
+  1:['..#..','.##..','..#..','..#..','..#..','..#..','.###.'],
+  2:['.###.','#...#','....#','...#.','..#..','.#...','#####'],
+  3:['.###.','#...#','....#','..##.','....#','#...#','.###.'],
+  4:['...#.','..##.','.#.#.','#..#.','#####','...#.','...#.'],
+  5:['#####','#....','####.','....#','....#','#...#','.###.'],
+  6:['.###.','#....','#....','####.','#...#','#...#','.###.'],
+  7:['#####','....#','...#.','..#..','.#...','.#...','.#...'],
+  8:['.###.','#...#','#...#','.###.','#...#','#...#','.###.'],
+  9:['.###.','#...#','#...#','.####','....#','....#','.###.'],
+};
+const COLS=25,ROWS=7,P=12;
+const pontos=[];
+(function montaMatriz(){
+  const svg=$('#matriz');svg.setAttribute('viewBox',`0 0 ${COLS*P} ${ROWS*P}`);
+  for(let y=0;y<ROWS;y++){pontos[y]=[];for(let x=0;x<COLS;x++){pontos[y][x]=sv('circle',{cx:x*P+P/2,cy:y*P+P/2,r:4.2,class:'d'},svg)}}
+})();
+function bitmap(txt){
+  const g=Array.from({length:ROWS},()=>Array(COLS).fill(0));
+  const poe=(d,x0)=>GL[d].forEach((row,y)=>[...row].forEach((c,x)=>{if(c==='#')g[y][x0+x]=1}));
+  poe(txt[0],0);poe(txt[1],6);g[2][12]=1;g[4][12]=1;poe(txt[3],14);poe(txt[4],20);
+  return g;
+}
+let horaAnt=null;
+function relogio(forcarDir){
+  const txt=hm(S.t);
+  $('#hora-sr').textContent=txt;
+  const dir=forcarDir||(horaAnt==null||S.t>=horaAnt?1:-1);
+  const g=bitmap(txt);
+  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
+    const d=pontos[y][x],on=!!g[y][x];
+    if(d.classList.contains('on')!==on){
+      /* varredura de linha: o dígito que muda reacende de cima para baixo (ou ao contrário, se o tempo volta) */
+      d.style.transitionDelay=reduz()?'0ms':`${(dir>0?y:ROWS-1-y)*26+x*1.5}ms`;
+      d.classList.toggle('on',on);
+    }
+  }
+  horaAnt=S.t;
+}
+function relogioApaga(){for(const row of pontos)for(const d of row){d.style.transitionDelay='0ms';d.classList.remove('on')}}
+
+/* ============================================================
+   2. DIA: cartão com três papéis + linha do dia
+   ============================================================ */
+let cenaAtual=null; /* {key, el, update} */
+function papelDia(){
+  const evs=evHoje(),t=S.t;
+  const agora=evs.find(e=>e.ini<=t&&t<e.fim);
+  if(agora)return{papel:'agora',ev:agora,key:'agora-'+agora.id};
+  const prox=evs.find(e=>e.ini>t);
+  if(prox)return{papel:'proximo',ev:prox,key:'proximo-'+prox.id};
+  const ult=evs.length?Math.max(...evs.map(e=>e.fim)):420;
+  return{papel:'livre',desde:ult,key:'livre'};
+}
+function mkTit(e,cls='h-tit'){const p=document.createElement('p');p.className=cls+' tit-ev';p.dataset.id=e.id;p.textContent=titulo(e);return p}
+
+function cenaAgora(ev){
+  const el=document.createElement('div');el.className='cena-dia';
+  const topo=document.createElement('div');topo.className='h-topo';
+  topo.appendChild(mkTit(ev,'h-tit grande'));
+  if(ev.meet){topo.insertAdjacentHTML('beforeend',`<button class="video aceso" aria-label="Entrar na videochamada">${ICO_CAM}<span>entrar</span></button>`)}
+  el.appendChild(topo);
+  const meta=document.createElement('p');meta.className='h-meta';
+  meta.innerHTML=`termina <span class="mono">${hm(ev.fim)}</span>, faltam <span class="o"></span> min`;
+  el.appendChild(meta);
+  const odo=new Odo(meta.querySelector('.o'),{min:2});
+  const prog=document.createElement('div');prog.className='prog';prog.setAttribute('aria-hidden','true');
+  const d=ev.fim-ev.ini,nSeg=Math.min(d,60);const segs=segbar(prog,nSeg);
+  el.appendChild(prog);
+  const dep=document.createElement('p');dep.className='h-depois';el.appendChild(dep);
+  let primeiro=true;
+  return{el,update(){
+    const t=S.t;odo.set(ev.fim-t,primeiro);primeiro=false;
+    const lit=Math.floor((t-ev.ini)/d*nSeg);segs.forEach((s,i)=>s.classList.toggle('on',i<lit));
+    const seg=evHoje().find(e=>e.ini>=ev.fim);
+    dep.textContent=seg?`depois: ${titulo(seg)}, ${hm(seg.ini)}`:'depois: dia livre';
+  }};
+}
+function cenaProximo(ev){
+  const el=document.createElement('div');el.className='cena-dia';
+  const topo=document.createElement('div');topo.className='h-topo';
+  const cont=document.createElement('div');cont.className='h-cont';
+  topo.appendChild(cont);
+  let video=null;
+  if(ev.meet){topo.insertAdjacentHTML('beforeend',`<button class="video" aria-label="Entrar na videochamada">${ICO_CAM}<span>entrar</span></button>`);video=topo.lastElementChild}
+  el.appendChild(topo);
+  el.appendChild(mkTit(ev));
+  const meta=document.createElement('p');meta.className='h-meta';
+  meta.innerHTML=`${forma(ev.ag)}<span class="mono">${hm(ev.ini)}</span> às <span class="mono">${hm(ev.fim)}</span>, ${NOME_AG[ev.ag]}${ev.rec?ICO_REC:''}`;
+  el.appendChild(meta);
+  let forma_=null,oH=null,oM=null;
+  return{el,update(){
+    const m=ev.ini-S.t,h=Math.floor(m/60),r=m%60;
+    const f=h>0?'h':'m';
+    if(f!==forma_){
+      cont.innerHTML=f==='h'
+        ?`<span class="pre">em</span><span class="oh"></span><span class="un">h</span><span class="om"></span><span class="un">min</span>`
+        :`<span class="pre">em</span><span class="om"></span><span class="un">min</span>`;
+      oH=f==='h'?new Odo(cont.querySelector('.oh')):null;
+      /* min 2 nas duas formas: 10→9 rola como os outros dígitos (com 1 a coluna era recriada e o número saltava) */
+      oM=new Odo(cont.querySelector('.om'),{min:2});
+      oH?.set(h,true);oM.set(f==='h'?r:m,true);forma_=f;
+    }else{oH?.set(h);oM.set(f==='h'?r:m)}
+    cont.classList.toggle('urgente',m<=15);
+    if(video)video.classList.toggle('aceso',m<=10);
+  }};
+}
+function cenaLivre(desde){
+  const el=document.createElement('div');el.className='cena-dia';
+  const amanha=DEPOIS[0].evs[0];
+  el.innerHTML=`<p class="h-livre">dia livre a partir de <span class="mono">${hm(desde)}</span></p><p class="h-meta">amanhã: <span class="tit-ev" data-id="${amanha.id}">${titulo(amanha)}</span>, dia todo</p>`;
+  return{el,update(){}};
+}
+
+function marcaModo(papel,instant){
+  const alvo=$(`#modo [data-m="${papel}"]`);
+  document.querySelectorAll('#modo span').forEach(s=>s.classList.toggle('ativo',s===alvo));
+  const mk=$('#modo-marca');
+  if(instant||reduz())mk.style.transition='none';
+  mk.style.transform=`translateX(${alvo.offsetLeft}px) scaleX(${alvo.offsetWidth})`;
+  if(instant||reduz()){void mk.offsetWidth;mk.style.transition=''}
+}
+
+function dia(instant){
+  const p=papelDia();
+  if(!cenaAtual||cenaAtual.key!==p.key){
+    const palco=$('#palco');
+    const nova=p.papel==='agora'?cenaAgora(p.ev):p.papel==='proximo'?cenaProximo(p.ev):cenaLivre(p.desde);
+    nova.key=p.key;
+    /* troca rápida (arrastar o horário): quem já estava saindo some na hora, sem empilhar */
+    palco.querySelectorAll('.cena-dia.sai').forEach(n=>n.remove());
+    if(cenaAtual&&!instant){
+      const velha=cenaAtual.el;
+      velha.classList.remove('entra');velha.classList.add('sai');
+      setTimeout(()=>velha.remove(),reduz()?110:170);
+      nova.el.classList.add('entra');
+    }else if(cenaAtual){cenaAtual.el.remove()}
+    palco.appendChild(nova.el);
+    cenaAtual=nova;
+    marcaModo(p.papel,instant);
+    $('#dia-sr').textContent=descDia(p);
+  }
+  cenaAtual.update();
+}
+function descDia(p){
+  return p.papel==='agora'?`Agora: ${titulo(p.ev)}, termina ${hm(p.ev.fim)}`:p.papel==='proximo'?`Próximo: ${titulo(p.ev)}, às ${hm(p.ev.ini)}`:`Dia livre a partir de ${hm(p.desde)}`;
+}
+
+/* linha do dia */
+const RG={};
+function montaRegua(){
+  const svg=$('#regua');const w=Math.max(200,svg.clientWidth||400),h=64,pad=10;
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.textContent='';
+  const X=t=>pad+(t-420)/840*(w-2*pad);RG.X=X;RG.W=w;
+  for(let t=420;t<=1260;t+=120){
+    sv('text',{x:X(t),y:9,class:'hr','text-anchor':t===420?'start':t===1260?'end':'middle'},svg).textContent=String(t/60).padStart(2,'0');
+  }
+  RG.dots=[];
+  for(let i=0;i<=56;i++){RG.dots.push(sv('circle',{cx:X(420+15*i),cy:30,r:1.7,class:'rd','data-t':420+15*i},svg))}
+  RG.gEv=sv('g',{},svg);
+  /* marca da PRÓXIMA renovação do Claude (posição e hora atualizadas em regua(), igual à legenda do widget Claude) */
+  const rs=sv('g',{class:'reset',transform:`translate(${X(RESET_CLAUDE)},0)`},svg);
+  RG.rs=rs;
+  RG.rsTit=sv('title',{},rs);RG.rsTit.textContent='renovação da janela de 5h do Claude, 14:59';
+  sv('line',{x1:0,x2:0,y1:36,y2:43},rs);
+  const ico=sv('g',{class:'ico',transform:'translate(-5,46)'},rs);
+  ico.innerHTML='<g fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" transform="scale(.84)"><path d="M10 6a4 4 0 0 1-6.9 2.8M2 6a4 4 0 0 1 6.9-2.8"/><path d="M9.2 1.6v1.8H7.4M2.8 10.4V8.6h1.8"/></g>';
+  RG.rsTxt=sv('text',{x:8,y:55},rs);RG.rsTxt.textContent='14:59';
+  RG.ag=sv('g',{class:'agulha'},svg);
+  sv('path',{d:'M-4 12h8l-4 5z'},RG.ag);
+  sv('line',{x1:0,x2:0,y1:18,y2:41},RG.ag);
+}
+function regua(cascata=false){
+  if(!RG.X)return;
+  const X=RG.X,t=S.t;
+  RG.dots.forEach((d,i)=>{
+    d.style.transitionDelay=cascata&&!reduz()?`${i*7}ms`:'0ms';
+    d.classList.toggle('on',+d.dataset.t<=t);
+  });
+  RG.gEv.textContent='';
+  for(const e of evHoje()){
+    sv('rect',{x:X(e.ini)-1,y:26,width:Math.max(3,X(e.fim)-X(e.ini)+2),height:8,rx:2,fill:`var(--ag-${e.ag})`,class:'rb'+(e.fim<=t?' passado':'')},RG.gEv);
+  }
+  RG.ag.setAttribute('transform',`translate(${X(t).toFixed(2)},0)`);
+  /* próxima renovação dentro da régua 07–21h; depois das 19:59 a próxima (00:59) cai fora: marca a última, apagada */
+  const px=proxReset(t),dentro=px<=1260,rsT=dentro?px:1199;
+  RG.rs.setAttribute('transform',`translate(${X(rsT).toFixed(2)},0)`);
+  RG.rs.style.opacity=dentro?'':'.4';
+  RG.rsTxt.textContent=hm(rsT);
+  const aEsq=X(rsT)+44>RG.W; /* perto da borda direita (19:59 em tela estreita): hora à esquerda do traço, sem cortar */
+  RG.rsTxt.setAttribute('x',aEsq?-8:8);RG.rsTxt.setAttribute('text-anchor',aEsq?'end':'start');
+  RG.rsTit.textContent=dentro?`próxima renovação da janela de 5h do Claude, ${hm(rsT)}`:`a janela de 5h do Claude renovou às ${hm(rsT)}`;
+  $('#regua').setAttribute('aria-label',`Linha do dia das 7h às 21h, agora ${hm(t)}; ${evHoje().map(e=>`${titulo(e)} ${hm(e.ini)} às ${hm(e.fim)}`).join('; ')}; ${dentro?'próxima renovação do Claude às':'renovação do Claude foi às'} ${hm(rsT)}`);
+}
+
+/* ============================================================
+   3. AGENDA com reordenação FLIP
+   ============================================================ */
+function itensAgenda(){
+  const t=S.t,evs=evHoje(),out=[];
+  out.push({key:'g-hoje',cls:'g',html:'Hoje'});
+  let agoraPosto=false;
+  evs.forEach((e,i)=>{
+    if(!agoraPosto&&e.ini>t){out.push({key:'agora',cls:'agora-l',html:`<span class="hora">${hm(t)}</span><span class="fio-a"></span>`,label:`agora, ${hm(t)}`});agoraPosto=true}
+    const passado=e.fim<=t,curso=e.ini<=t&&t<e.fim;
+    out.push({key:'e-'+e.id,cls:'ev'+(passado?' passado':'')+(curso?' em-curso':''),ev:e,
+      html:`<span class="hora">${hm(e.ini)}</span>${forma(e.ag)}<span class="tit tit-ev" data-id="${e.id}">${titulo(e)}</span>${e.rec?ICO_REC:'<span></span>'}`});
+    const b=evs[i+1];
+    if(b&&e.fim>=t&&b.ini-e.fim>=60){
+      /* evento em curso: a linha do agora fica logo abaixo dele, antes do vão */
+      if(!agoraPosto&&e.fim>t){out.push({key:'agora',cls:'agora-l',html:`<span class="hora">${hm(t)}</span><span class="fio-a"></span>`,label:`agora, ${hm(t)}`});agoraPosto=true}
+      out.push({key:`v-${e.id}`,cls:'vao',html:`<span></span><span class="fio-v"></span><span class="txt">livre ${hm(e.fim)} às ${hm(b.ini)}, ${dur(b.ini-e.fim)}</span>`});
+    }
+  });
+  if(!agoraPosto)out.push({key:'agora',cls:'agora-l',html:`<span class="hora">${hm(t)}</span><span class="fio-a"></span>`,label:`agora, ${hm(t)}`});
+  for(const g of DEPOIS){
+    const evs2=g.evs.filter(e=>!(corpFora()&&e.ag==='corporativo'));
+    if(!evs2.length)continue;
+    out.push({key:'g-'+g.k,cls:'g',html:g.g});
+    for(const e of evs2){
+      out.push({key:'e-'+e.id,cls:'ev',ev:e,html:`${e.dia?'<span class="hora dia-todo">dia todo</span>':`<span class="hora">${hm(e.ini)}</span>`}${forma(e.ag)}<span class="tit tit-ev" data-id="${e.id}">${titulo(e)}</span>${e.rec?ICO_REC:'<span></span>'}`});
+    }
+  }
+  return out;
+}
+let agendaPrimeira=true;
+function agenda(){
+  const lista=$('#lista');
+  const itens=itensAgenda();
+  lista.querySelectorAll('.saindo').forEach(n=>n.remove());
+  const velhos=new Map([...lista.children].filter(n=>!n.classList.contains('saindo')).map(n=>[n.dataset.key,n]));
+  const animar=!agendaPrimeira&&!reduz();
+  const r0=new Map();if(animar)velhos.forEach((n,k)=>r0.set(k,n.getBoundingClientRect()));
+  /* aviso e saúde mudam depois da medida: o deslocamento que o aviso causa entra no FLIP */
+  saude();
+  const rl=lista.getBoundingClientRect();
+  const novosKeys=new Set(itens.map(i=>i.key));
+  /* quem sai: fica como fantasma absoluto no lugar antigo e desaparece */
+  velhos.forEach((n,k)=>{
+    if(novosKeys.has(k))return;
+    if(!animar){n.remove();return}
+    const r=r0.get(k);
+    n.style.position='absolute';n.style.left='0';n.style.right='0';n.style.top=(r.top-rl.top)+'px';
+    n.classList.add('saindo');
+    setTimeout(()=>n.remove(),190);
+  });
+  let k=0;
+  for(const it of itens){
+    let n=velhos.get(it.key);
+    const novo=!n;
+    if(novo){n=document.createElement('li');n.dataset.key=it.key;if(animar)n.classList.add('entrando')}
+    const sig=it.html;
+    if(n.dataset.sig!==sig){n.innerHTML=it.html;n.dataset.sig=sig}
+    const keep=[...n.classList].filter(c=>c==='entrando');
+    n.className=[it.cls,...keep].join(' ');
+    if(it.label)n.setAttribute('aria-label',it.label);else n.removeAttribute('aria-label');
+    n.style.setProperty('--k',Math.min(k++,8));
+    lista.appendChild(n);
+    if(novo&&animar)n.addEventListener('animationend',()=>n.classList.remove('entrando'),{once:true});
+  }
+  /* saindo vão para o fim do DOM para não atrapalhar a ordem */
+  lista.querySelectorAll('.saindo').forEach(n=>lista.appendChild(n));
+  if(animar){
+    for(const n of lista.children){
+      if(n.classList.contains('saindo')||!r0.has(n.dataset.key))continue;
+      const dy=r0.get(n.dataset.key).top-n.getBoundingClientRect().top;
+      if(Math.abs(dy)<.5)continue;
+      n.style.transition='none';n.style.transform=`translateY(${dy}px)`;
+      void n.offsetHeight;
+      n.style.transition='transform 300ms var(--ease-out), opacity 200ms linear';n.style.transform='';
+      n.addEventListener('transitionend',function f(ev){if(ev.propertyName==='transform'){n.style.transition='';n.removeEventListener('transitionend',f)}});
+    }
+  }
+  agendaPrimeira=false;
+  $('#ag-pe').textContent=corpFora()?'mais 3 eventos até 16/10':'mais 6 eventos até 16/10';
+}
+/* pontos de saúde: montados uma vez; a falha só troca classe e rótulo (assim o fill transiciona em vez de saltar) */
+const FONTES=['pessoal','corporativo','feriados'];
+const ROT_FONTE={pessoal:'agenda pessoal',corporativo:'agenda corporativa',feriados:'agenda de feriados'};
+(function montaSaude(){
+  $('#saude').innerHTML=FONTES.map(a=>forma(a,'').replace('<svg ',`<svg role="img" data-a="${a}" `).replace(/ fill="var\(--ag-[a-z]+\)"/,'').replace(' aria-hidden="true"','')).join('');
+  $('#saude').querySelectorAll('svg').forEach(s=>s.prepend(document.createElementNS(NS,'title')));
+})();
+function saude(){
+  $('#saude').querySelectorAll('svg').forEach(s=>{
+    const a=s.dataset.a,falha=a==='corporativo'&&corpFora();
+    const txt=`${ROT_FONTE[a]}: ${falha?`sem resposta desde ${hm(corpDesde())}`:'em dia'}`;
+    s.classList.toggle('falha',falha);
+    if(s.getAttribute('aria-label')!==txt){s.setAttribute('aria-label',txt);s.querySelector('title').textContent=txt}
+  });
+  $('#aviso-desde').textContent=hm(corpDesde());
+  const av=$('#aviso');
+  const mostra=corpFora();
+  if(mostra&&av.hidden){av.hidden=false;av.classList.remove('mostra');void av.offsetWidth;av.classList.add('mostra')}
+  if(!mostra)av.hidden=true;
+}
+function trocaTitulos(){
+  document.querySelectorAll('.tit-ev').forEach(s=>{
+    const id=s.dataset.id;const e=[...HOJE,...DEPOIS.flatMap(g=>g.evs)].find(x=>x.id===id);if(!e)return;
+    const novo=titulo(e);if(s.textContent===novo)return;
+    s.textContent=novo;s.classList.remove('troca');void s.offsetWidth;s.classList.add('troca');
+  });
+  /* mantém a assinatura das linhas coerente para a próxima reconciliação */
+  document.querySelectorAll('#lista li').forEach(li=>li.dataset.sig=li.innerHTML);
+  if(cenaAtual){cenaAtual.update();$('#dia-sr').textContent=descDia(papelDia())}
+}
+
+/* ============================================================
+   4. MÁQUINA
+   ============================================================ */
+const MAQ={
+  normal:{cpu:23,ram:61,gpu:12,ssd:83,ramG:'9,3G'},
+  carga:{cpu:96,ram:88,gpu:41,ssd:83,ramG:'13,4G'},
+};
+const dials={},odos={};
+for(const k of ['cpu','ram','gpu','ssd']){
+  const host=$('#d-'+k);
+  dials[k]=new Mostrador(host,{tam:66,esp:6,n:32,pad:4});
+  dials[k].marcas([0,.25,.5,.75].map(f=>({f,len:2.5})));
+  dials[k].centro.innerHTML='<div class="num"><span class="o"></span><small>%</small></div>';
+  odos[k]=new Odo(dials[k].centro.querySelector('.o'),{min:2});
+}
+const nivel=v=>v>=95?'critico':v>=85?'alerta':'';
+function maquina(boot){
+  const m=S.cena==='carga'?MAQ.carga:MAQ.normal;
+  for(const k of ['cpu','ram','gpu','ssd']){
+    const v=m[k];
+    const host=$('#d-'+k);
+    const nv=k==='ssd'?'':nivel(v);
+    if(nv)host.dataset.nivel=nv;else delete host.dataset.nivel;
+    host.setAttribute('role','img');
+    host.setAttribute('aria-label',`${k==='ssd'?'disco C':k}: ${v}% ${k==='ssd'?'usado':'em uso'}${nv==='critico'?', crítico':nv==='alerta'?', alto':''}`);
+    if(!boot){dials[k].alvo(v/100);odos[k].set(v)}
+  }
+  $('#det-ram').textContent=m.ramG;
+}
+const segG=segbar($('#cota-g'),40),segI=segbar($('#cota-i'),40);
+
+/* ============================================================
+   5. CLAUDE (contrato: verde <60, âmbar >=60, vermelho >=85; >=95 zoom; velho = cinza)
+   ============================================================ */
+const dC=new Mostrador($('#d-claude'),{tam:140,esp:10,n:48,pad:9});
+dC.centro.innerHTML='<div><div class="num"><span class="o"></span><small>%</small></div><span class="sub">janela 5h</span></div>';
+const odoC=new Odo(dC.centro.querySelector('.o'),{min:2});
+const zoomPonto=sv('circle',{cx:70,cy:3,r:2.6,class:'zoom-ponto'},dC.svg);
+const MARCAS_NORMAL=[{f:0,len:4},{f:.6,cor:'var(--alerta)',len:5},{f:.85,cor:'var(--critico)',len:5}];
+const MARCAS_ZOOM=[.2,.4,.6,.8].map(f=>({f,len:3}));
+dC.marcas(MARCAS_NORMAL);
+const c6a=segbar($('#c6-5h'),30),c6b=segbar($('#c6-7d'),30);
+const corC=v=>v>=85?'var(--critico)':v>=60?'var(--alerta)':'var(--ok)';
+acendeBar(c6a,0);acendeBar(c6b,0);
+
+/* janelas de 5h: 04:59, 09:59, 14:59, 19:59. Cada janela começa baixa (renovação de verdade, inclusive às 09:59);
+   âncoras do roteiro: 14:37 → 71% e 14:59 → 4% */
+function claudeValor(t){
+  if(t<599)return 10+(t-299)*.15;          /* 07:00 → 28, 09:58 → 55 */
+  if(t<899)return 6+(t-599)*(65/278);      /* 09:59 → 6, 14:37 → 71, 14:58 → 76 */
+  if(t<1199)return 4+(t-899)*.12;          /* 14:59 → 4 */
+  return 4+(t-1199)*.12;                   /* 19:59 → 4 */
+}
+function proxReset(t){return t<599?599:t<899?899:t<1199?1199:1499}
+let cAnt={v:null,zoom:false,t:null};
+let cFrac=0; /* alvo corrente do arco: o timeout da troca de escala lê daqui, nunca um valor capturado */
+function claude(boot){
+  const t=S.t;
+  const stale=S.cena==='velho';
+  /* dado velho: última medição às 14:21 (ou 16 min antes do slider, se ele estiver antes); o valor fica congelado nela */
+  const velhoDesde=Math.min(861,t-16);
+  let v=Math.round(claudeValor(stale?velhoDesde:t));
+  if(S.cena==='limite')v=97;
+  const zoom=v>=95&&!stale;
+  const frac=zoom?(v-95)/5:v/100;
+  cFrac=frac;
+  const host=$('#d-claude');
+  host.dataset.c=stale?'velho':v>=85?'critico':v>=60?'alerta':'ok';
+  host.classList.toggle('zoom',zoom);
+  host.setAttribute('role','img');
+  host.setAttribute('aria-label',`janela de 5h da conta ativa: ${v}%${stale?', medição antiga':''}${zoom?', escala ampliada de 95 a 100':''}`);
+  const nr=proxReset(t);
+  $('#claude-leg').innerHTML=`5h, conta 4, renova <span class="mono">${hm(nr)}</span> <span style="white-space:nowrap">(em ${emTexto(nr-t)})</span>`;
+  const idade=$('#claude-idade');
+  if(stale){
+    idade.querySelector('span').textContent=`sem medição nova há ${emTexto(t-velhoDesde)} (última às ${hm(velhoDesde)})`;
+    idade.hidden=false;
+  }else{idade.hidden=true}
+  $('#claude-escala').hidden=!zoom;
+  if(boot){cAnt={v,zoom,t};return}
+  /* renovação = o slider avançou e cruzou a fronteira da janela (não "caiu mais de 20 pontos") */
+  const renovou=!stale&&cAnt.t!=null&&t>cAnt.t&&proxReset(cAnt.t)!==proxReset(t)&&cAnt.v!=null&&v<cAnt.v;
+  if(zoom!==cAnt.zoom){
+    /* troca de escala: o arco recolhe e reabre na escala nova (é uma mudança de faixa, não uma queda) */
+    dC.alvo(0,{modo:'recolhe',durMs:220});
+    clearTimeout(claude.tz);
+    claude.tz=setTimeout(()=>{dC.marcas(cAnt.zoom?MARCAS_ZOOM:MARCAS_NORMAL);dC.alvo(cFrac,{k:260})},reduz()?0:230);
+  }else if(renovou){
+    /* renovação: o arco recolhe uma vez, movimento dentro do widget */
+    dC.alvo(frac,{modo:'recolhe',durMs:640});
+  }else{
+    dC.alvo(frac,{k:260});
+  }
+  odoC.set(v);
+  cAnt={v,zoom,t};
+  /* conta inativa: vem do mesmo snapshot da bandeja, então também fica cinza quando ele está velho */
+  acendeBar(c6a,.18,{cor:stale?'var(--velho)':corC(18)});acendeBar(c6b,.9,{cor:stale?'var(--velho)':corC(90)});
+}
+
+/* ============================================================
+   ORQUESTRAÇÃO
+   ============================================================ */
+function tudo(){
+  $('#hora-out').textContent=hm(S.t);
+  $('#hora').setAttribute('aria-valuetext',hm(S.t));
+  relogio();dia();regua();agenda();maquina();claude();
+}
+
+/* entrada: autoteste do aparelho, uma vez por sessão */
+let timers=[];
+function boot(){
+  timers.forEach(clearTimeout);timers=[];
+  const b=document.body;
+  b.classList.remove('boot');void b.offsetWidth;b.classList.add('boot');
+  agendaPrimeira=true;$('#lista').textContent='';
+  relogioApaga();horaAnt=null;
+  for(const k in dials){dials[k].salta(0);odos[k].set(0,true)}
+  dC.salta(0);odoC.set(0,true);
+  acendeBar(segG,0);acendeBar(segI,0);acendeBar(c6a,0);acendeBar(c6b,0);
+  RG.dots?.forEach(d=>{d.style.transitionDelay='0ms';d.classList.remove('on')});
+  cenaAtual?.el.remove();cenaAtual=null;
+  $('#hora-out').textContent=hm(S.t);
+  dia(true);
+  regua(false);RG.dots.forEach(d=>d.classList.remove('on'));
+  agenda();
+  maquina(true);claude(true);
+  const r=reduz();
+  const at=ms=>r?0:ms;
+  timers.push(setTimeout(()=>relogio(1),at(180)));
+  timers.push(setTimeout(()=>regua(true),at(260)));
+  ['cpu','ram','gpu','ssd'].forEach((k,i)=>timers.push(setTimeout(()=>{
+    const m=S.cena==='carga'?MAQ.carga:MAQ.normal;dials[k].alvo(m[k]/100,{k:300});odos[k].set(m[k]);
+  },at(380+i*60))));
+  timers.push(setTimeout(()=>{acendeBar(segG,.74,{cascata:true});acendeBar(segI,.267,{cascata:true,atrasoBase:60})},at(560)));
+  timers.push(setTimeout(()=>{cAnt={v:null,zoom:cAnt.zoom,t:null};claude()},at(440)));
+  timers.push(setTimeout(()=>{b.classList.remove('boot');segG.concat(segI).forEach(s=>s.style.transitionDelay='0ms')},at(1500)));
+}
+
+/* controles */
+const slider=$('#hora');
+slider.addEventListener('input',()=>{S.t=+slider.value;tudo()});
+document.querySelectorAll('[data-cena]').forEach(b=>b.addEventListener('click',()=>{
+  S.cena=b.dataset.cena;
+  document.querySelectorAll('[data-cena]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+  tudo();
+}));
+$('#cadeado').innerHTML=ICO_CAD_A;
+$('#cadeado').addEventListener('click',e=>{
+  S.privado=!S.privado;const b=e.currentTarget;
+  b.setAttribute('aria-pressed',String(S.privado));b.innerHTML=S.privado?ICO_CAD_F:ICO_CAD_A;
+  b.title=S.privado?'Modo privado ligado: títulos escondidos':'Modo privado: esconde os títulos';
+  trocaTitulos();regua();
+});
+$('#bt-rm').addEventListener('click',e=>{
+  rmManual=!rmManual;e.currentTarget.setAttribute('aria-pressed',String(rmManual));aplicaRM();
+});
+$('#bt-rever').addEventListener('click',boot);
+
+/* ============================================================
+   PAPÉIS DE PAREDE (gerados em canvas, sem imagem externa)
+   ============================================================ */
+function prng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function grao(ctx,w,h,amp){
+  const im=ctx.getImageData(0,0,w,h),d=im.data,r=prng(7);
+  for(let i=0;i<d.length;i+=4){const n=(r()-.5)*amp;d[i]+=n;d[i+1]+=n;d[i+2]+=n}
+  ctx.putImageData(im,0,0);
+}
+/* Grafite: metal torneado (anéis concêntricos finíssimos vindos de fora da tela) */
+function grafite(ctx,w,h,s){
+  ctx.fillStyle='#141413';ctx.fillRect(0,0,w,h);
+  const r=prng(11),cx=w*1.05,cy=h*1.18,max=Math.hypot(w,h)*1.35;
+  ctx.lineWidth=1.3*s;
+  for(let rad=2;rad<max;rad+=1.25*s){
+    const a=r()*.03;
+    ctx.strokeStyle=r()<.5?`rgba(255,255,255,${a*.9})`:`rgba(0,0,0,${a*1.6})`;
+    ctx.beginPath();ctx.arc(cx,cy,rad,0,Math.PI*2);ctx.stroke();
+  }
+  const g=ctx.createRadialGradient(w*.78,h*.82,0,w*.78,h*.82,w*.7);
+  g.addColorStop(0,'rgba(255,248,235,.06)');g.addColorStop(1,'rgba(255,248,235,0)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+  grao(ctx,w,h,10);
+}
+/* Gesso e Ocre: dobras de papel grandes com sombra macia */
+function dobras(ctx,w,h,s,base,tons,sombra,seed){
+  ctx.fillStyle=base;ctx.fillRect(0,0,w,h);
+  const r=prng(seed);
+  const dim=Math.max(w,h);
+  for(let i=0;i<tons.length;i++){
+    ctx.save();
+    ctx.translate(w*(.05+i*.24)+r()*w*.06,h*(.95-i*.2));
+    ctx.rotate((-24+r()*8)*Math.PI/180);
+    ctx.shadowColor=sombra;ctx.shadowBlur=90*s;ctx.shadowOffsetY=18*s;ctx.shadowOffsetX=-10*s;
+    ctx.fillStyle=tons[i];
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(-dim*.2,-dim*.9,dim*1.4,dim*.9,40*s):ctx.rect(-dim*.2,-dim*.9,dim*1.4,dim*.9);ctx.fill();
+    ctx.restore();
+  }
+  grao(ctx,w,h,9);
+}
+const PAREDES={
+  grafite:{face:'escuro',draw:grafite},
+  gesso:{face:'claro',draw:(c,w,h,s)=>dobras(c,w,h,s,'#DCD9D2',['#E9E7E1','#E1DED7','#EEECE7','#E5E2DB'],'rgba(70,60,45,.22)',3)},
+  ocre:{face:'escuro',draw:(c,w,h,s)=>dobras(c,w,h,s,'#5E4318',['#6E5020','#7F5F28','#684A1C','#8B6A30'],'rgba(25,14,0,.45)',5)},
+};
+let canvasFrente=$('#parede-a'),canvasTras=$('#parede-b');
+/* Gerar um papel custa 60–100 ms a 1x (4x isso em tela 2x) e travava a thread bem no início do crossfade.
+   Cada papel é gerado uma vez por tamanho, guardado num canvas fora da tela, e a troca só copia (drawImage).
+   Os outros dois são pré-gerados em tempo ocioso depois da entrada. Custo: ~w*h*4 bytes por papel guardado. */
+const cacheParede=new Map();
+function tamParede(){const s=Math.min(2,window.devicePixelRatio||1);return{s,w:Math.round(document.documentElement.clientWidth*s),h:Math.round(window.innerHeight*s)}}
+function geraParede(nome){
+  const{s,w,h}=tamParede(),k=`${nome}|${w}x${h}`;
+  let c=cacheParede.get(k);
+  if(!c){
+    c=document.createElement('canvas');c.width=w;c.height=h;
+    PAREDES[nome].draw(c.getContext('2d',{willReadFrequently:true}),w,h,s);
+    cacheParede.set(k,c);
+  }
+  return c;
+}
+function pinta(cv,nome){
+  const src=geraParede(nome);
+  cv.width=src.width;cv.height=src.height;
+  cv.getContext('2d').drawImage(src,0,0);
+}
+const ocioso=window.requestIdleCallback?f=>requestIdleCallback(f,{timeout:3000}):f=>setTimeout(f,250);
+function preaquece(){
+  const{w,h}=tamParede();
+  const fila=Object.keys(PAREDES).filter(n=>!cacheParede.has(`${n}|${w}x${h}`)); /* um papel por fatia ociosa */
+  const passo=()=>{const n=fila.shift();if(!n)return;geraParede(n);if(fila.length)ocioso(passo)};
+  ocioso(passo);
+}
+function trocaParede(nome,instant){
+  S.parede=nome;
+  document.querySelectorAll('[data-parede]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.parede===nome)));
+  document.documentElement.dataset.face=PAREDES[nome].face;
+  if(instant){pinta(canvasFrente,nome);return}
+  pinta(canvasTras,nome);
+  canvasTras.classList.remove('oculta');canvasFrente.classList.add('oculta');
+  [canvasFrente,canvasTras]=[canvasTras,canvasFrente];
+}
+document.querySelectorAll('[data-parede]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.parede!==S.parede)trocaParede(b.dataset.parede)}));
+let rzT=0;
+addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{
+  const{w,h}=tamParede();
+  for(const k of cacheParede.keys())if(!k.endsWith(`|${w}x${h}`))cacheParede.delete(k); /* tamanho velho não volta a servir */
+  if(canvasFrente.width!==w||canvasFrente.height!==h){pinta(canvasFrente,S.parede);preaquece()}
+  montaRegua();regua();if(cenaAtual)marcaModo(papelDia().papel,true);
+},160)});
+
+/* ============================================================
+   INÍCIO
+   ============================================================ */
+trocaParede('grafite',true);
+montaRegua();
+boot();
+setTimeout(preaquece,reduz()?300:1700); /* depois da coreografia de entrada, para não disputar quadro com ela */
+})();
+</script>
+</body>
+</html>

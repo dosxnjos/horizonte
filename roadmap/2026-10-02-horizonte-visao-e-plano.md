@@ -143,8 +143,10 @@ superfícies**, todas lendo o mesmo estado:
 - **Disco em dias de cobertura,** como estoque: "80 GB livres · −0,4 GB/dia →
   ~200 dias". O hover mostra o **estoque parado**: "Downloads 12 GB sem uso há
   60+ dias", via `FolderInfo`. É o raciocínio de giro de estoque aplicado ao SSD.
-- **Cotas do Drive como anéis/barras:** "Drive corporativo 26/100 GB livres". O
-  rótulo do volume tem o e-mail, então o painel **sempre** mostra um apelido.
+- **Discos escolhidos pelo usuário:** uma lista em `Variaveis.inc` define quais
+  unidades aparecem, com rótulo fixo por unidade (`C:` = "Windows", `G:` =
+  "Drive"). **Padrão: só o C:** (decisão do Gabriel, 02/10). O rótulo do volume
+  nunca é lido, porque o do Google Drive contém o e-mail.
 - **Quem está pesando:** hover no anel da CPU mostra "chrome 18%"; no da RAM,
   "maior: msedge 1,9 GB".
 - **Erro que fala.** Um ponto vermelho com a mensagem "GoogleCalendar2: 404
@@ -323,7 +325,8 @@ uma vez fica lá mesmo se for apagado depois.
 
 **Três canais, um dono cada:**
 1. **Máquina.** Measures nativos a 1 s: `UsageMonitor` "% Processor Utility",
-   `PhysicalMemory` e `FreeDiskSpace` de C:, G:, H: e I:. Há um `!Redraw` só
+   `PhysicalMemory` e `FreeDiskSpace` das unidades da lista `Discos` (padrão `C:`;
+   cada unidade extra é um measure ligado só se estiver na lista). Há um `!Redraw` só
    quando o valor arredondado muda: CPU de 5 em 5 pontos, senão redesenharia a
    1 Hz para sempre.
 2. **Agenda.** O `agenda-sync` roda pela tarefa agendada, sem processo
@@ -453,7 +456,8 @@ Depois, os widgets:
 - CPU, RAM, C: em GB livres e GPU, com histerese:
   - CPU âmbar ≥85% sustentado por 10 s;
   - C: âmbar <15% livre.
-- Cotas do Drive como barras finas, com apelido.
+- Discos da lista `Discos=C:` (padrão), com rótulos "Windows" (C:) e "Drive" (G:,
+  se ligado). Unidade fora da lista não aparece nem é medida.
 
 **Claude**
 - só leitor do snapshot;
@@ -560,11 +564,18 @@ Opcional nesta fase: **Calendar API v3** com OAuth de app instalado, que traz:
 | Forma | **pacote novo com vários widgets separados**, não um widget único |
 
 **Em aberto:**
-1. **Apelidos das contas Claude e dos drives G:/H:/I:.** Proposta até ele
-   decidir: as contas Claude por apelido no `config.toml`, com padrão
-   `conta <N do cswap>`. Os drives como `drive G`, `drive H`, `drive I`.
-2. **Fase 5 / Calendar API:** só depois de 2 semanas com o pacote.
-3. **Atalho por AutoHotkey,** só se o `.lnk` falhar na fase 3.
+1. **Fase 5 / Calendar API:** só depois de 2 semanas com o pacote.
+2. **Atalho por AutoHotkey,** só se o `.lnk` falhar na fase 3.
+3. **Direção estética:** estudo de 4 direções com motion em
+   [`design/direcoes/`](../design/direcoes/). A escolha pode mudar o renderizador
+   (§ 2).
+
+**Respondidas depois (02/10/2026):**
+
+| pergunta | resposta |
+| --- | --- |
+| Apelidos das contas Claude | `produto` (conta 4) e `dados` (conta 6). O mapa número→apelido fica no `config.toml` local, nunca no repo |
+| Discos | escolhíveis por lista; **só o C: por enquanto**. Rótulos "Windows" (C:) e "Drive" (G:), sem apelido; H: e I: fora |
 
 ## Descartado e impraticável
 

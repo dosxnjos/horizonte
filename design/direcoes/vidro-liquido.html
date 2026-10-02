@@ -1,0 +1,1252 @@
+<!doctype html>
+<html lang="pt-BR" data-vidro="padrao">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vidro líquido</title>
+<meta name="description" content="Horizonte, direção Vidro líquido: widgets como lentes sobre o papel de parede, com luz que acompanha o sol do dia.">
+<link rel="icon" href="data:,">
+<style>
+/* ===== tokens ===================================================== */
+@property --p   { syntax: '<number>'; inherits: true;  initial-value: 0; }
+@property --w   { syntax: '<length>'; inherits: true;  initial-value: 64px; } /* o fundo da pílula (filho) lê --w: precisa herdar */
+@property --ink   { syntax: '<color>'; inherits: true; initial-value: #fff; }
+@property --ink-2 { syntax: '<color>'; inherits: true; initial-value: rgba(255,255,255,.80); }
+@property --ink-3 { syntax: '<color>'; inherits: true; initial-value: rgba(255,255,255,.66); }
+@property --trilho { syntax: '<color>'; inherits: true; initial-value: rgba(255,255,255,.16); }
+@property --base-vidro { syntax: '<color>'; inherits: false; initial-value: rgba(14,16,18,.24); }
+
+:root{
+  /* tipografia: só fontes do sistema */
+  --f-display: "Segoe UI Variable Display","Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+  --f-texto: "Segoe UI Variable Text","Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+  --f-mono: "Cascadia Mono","Cascadia Code",ui-monospace,Consolas,monospace;
+
+  /* contrato do anel Claude (inviolável) */
+  --ok:#30A46C; --alerta:#F5A623; --critico:#E5484D; --velho:#747684;
+  /* único acento quente: o AGORA */
+  --sol:#FFC27A;
+
+  /* raio contínuo (squircle quando o navegador tem corner-shape) */
+  --raio: 26px; --raio-int: 12px;
+
+  /* níveis de vidro: o "freio" de transparência */
+  --desfoque: 9px; --base-escuro: rgba(14,16,18,.24); --base-claro: rgba(255,255,255,.34);
+
+  /* luz (o sol do horário), escrita pelo JS */
+  --luz: #fff;
+
+  /* motion: os valores reais (linear() de mola) são gerados no JS e gravados aqui */
+  --ease-saida: cubic-bezier(.23,1,.32,1);
+  --mola-espacial: cubic-bezier(.23,1,.32,1); --dur-espacial: 480ms;
+  --mola-liquida: cubic-bezier(.34,1.3,.64,1); --dur-liquida: 620ms;
+  --mola-dado: cubic-bezier(.23,1,.32,1);     --dur-dado: 480ms;
+  --mola-efeito: cubic-bezier(.23,1,.32,1);   --dur-efeito: 220ms;
+  --dur-hover: 140ms;
+
+  color-scheme: dark light;
+}
+:root[data-vidro="claro"]{ --desfoque: 3px;  --base-escuro: rgba(14,16,18,.10); --base-claro: rgba(255,255,255,.16); }
+:root[data-vidro="fosco"]{ --desfoque: 20px; --base-escuro: rgba(16,18,20,.58); --base-claro: rgba(255,255,255,.72); }
+
+*,*::before,*::after{ box-sizing:border-box; }
+html,body{ margin:0; }
+body{
+  min-height:100dvh; background:#0b1312; color:#fff;
+  font: 400 14px/1.4 var(--f-texto);
+  -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+button,input{ font:inherit; color:inherit; }
+h1,h2,h3,p,ul{ margin:0; padding:0; }
+ul{ list-style:none; }
+.sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.mono{ font-family:var(--f-mono); font-variant-numeric:tabular-nums; }
+.num{ font-variant-numeric:tabular-nums; }
+svg.i{ width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+
+/* ===== papel de parede ============================================ */
+.papel{ position:fixed; inset:0; width:100vw; height:100lvh; display:block; z-index:0; opacity:0;
+  transition: opacity 700ms var(--ease-saida); }
+.papel.ativo{ opacity:1; }
+
+/* ===== mesa (a área de trabalho) ================================== */
+.mesa{
+  position:relative; z-index:1;
+  display:grid; gap:16px; padding:16px;
+  grid-template-columns: minmax(0,1fr);
+}
+.par{ display:grid; gap:16px; grid-template-columns:minmax(0,1fr); }
+
+/* ===== material: vidro líquido ==================================== */
+.vidro{
+  /* ink-3 é o texto pequeno mais fraco: o piso de legibilidade (JS, amostrar) é calculado sobre ele */
+  --ink: #fff; --ink-2: rgba(255,255,255,.80); --ink-3: rgba(255,255,255,.66); --trilho: rgba(255,255,255,.17);
+  --inverso:#121416; --ink-anel: rgba(255,255,255,.9);
+  --c-pess:#A3D3B5; --c-corp:#A6BFE2; --c-fer:#EBAE9E; --sol-traco: var(--sol);
+  --base-vidro: var(--base-escuro);
+  --lx: 15%; --ly: -30%; --ix: 1.5px; --iy: 2px; --sx: 0px; --sy: 12px;
+  position:relative; isolation:isolate; overflow:clip;
+  border-radius: var(--raio);
+  color: var(--ink);
+  background: color-mix(in oklab, var(--amostra, transparent) 16%, var(--base-vidro));
+  -webkit-backdrop-filter: blur(var(--desfoque)) saturate(1.7);
+          backdrop-filter: blur(var(--desfoque)) saturate(1.7);
+  box-shadow:
+    var(--sx) var(--sy) 34px -18px rgba(0,0,0,.38),
+    0 0 0 .5px rgba(0,0,0,.10),
+    inset var(--ix) var(--iy) 3px -2px color-mix(in oklab, var(--luz) 70%, transparent),
+    inset calc(var(--ix) * -1) calc(var(--iy) * -1) 8px -5px rgba(0,0,0,.16),
+    inset 0 0 22px -10px color-mix(in oklab, var(--luz) 45%, transparent);
+  transition: --ink 380ms, --ink-2 380ms, --ink-3 380ms, --trilho 380ms, --base-vidro 380ms,
+              box-shadow var(--dur-hover) var(--ease-saida);
+}
+.vidro[data-tinta="escura"]{
+  --ink:#131517; --ink-2: rgba(19,21,23,.80); --ink-3: rgba(19,21,23,.68); --trilho: rgba(19,21,23,.13);
+  --inverso:#fff; --ink-anel: rgba(19,21,23,.86);
+  --c-pess:#2E7A50; --c-corp:#2F5E9C; --c-fer:#AE4F3B; --sol-traco:#D9831C;
+  --base-vidro: var(--base-claro);
+}
+/* lente real (Chromium): backdrop-filter com SVG de refração gerado por widget */
+.refrata .vidro[style*="--lente"]{ -webkit-backdrop-filter: var(--lente); backdrop-filter: var(--lente); }
+
+/* borda especular: luz na aresta, nunca faixa de brilho no topo */
+.vidro::before{
+  content:""; position:absolute; inset:0; border-radius:inherit; padding:1.5px; pointer-events:none; z-index:3;
+  background:
+    radial-gradient(75% 75% at var(--lx) var(--ly), var(--luz), transparent 74%),
+    radial-gradient(55% 55% at calc(100% - var(--lx)) calc(100% - var(--ly)), color-mix(in oklab, var(--luz) 55%, transparent), transparent 70%),
+    linear-gradient(rgba(255,255,255,.16), rgba(255,255,255,.16));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity:.95;
+}
+@supports (corner-shape: squircle){
+  .vidro{ corner-shape: squircle; border-radius: calc(var(--raio) * 1.7); }
+  .vidro::before{ corner-shape: squircle; }
+}
+@media (hover:hover) and (pointer:fine){
+  .widget:hover{ box-shadow:
+    var(--sx) var(--sy) 38px -16px rgba(0,0,0,.42),
+    0 0 0 .5px rgba(0,0,0,.12),
+    inset var(--ix) var(--iy) 3px -1px color-mix(in oklab, var(--luz) 90%, transparent),
+    inset calc(var(--ix) * -1) calc(var(--iy) * -1) 8px -5px rgba(0,0,0,.16),
+    inset 0 0 26px -10px color-mix(in oklab, var(--luz) 60%, transparent); }
+}
+.conteudo{ position:relative; z-index:2; height:100%; }
+:focus-visible{ outline:2px solid var(--ink, #fff); outline-offset:2px; }
+input[type=range]:focus-visible{ border-radius:8px; }
+
+/* ===== 1. relógio ================================================= */
+.w-relogio{ padding:18px 22px 20px; }
+.w-relogio .conteudo{ display:flex; flex-direction:column; gap:6px; }
+.hora{ font: 600 clamp(76px, 22vw, 96px)/1 var(--f-display); letter-spacing:-.025em; font-variant-numeric:tabular-nums; margin-left:-4px; }
+.hora .rolo .slot:nth-child(3) .dig{ opacity:.5; }
+.data-linha{ display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; font: 600 16px/1.3 var(--f-texto); color:var(--ink-2); }
+.chip{ display:inline-flex; align-items:center; gap:6px; height:24px; padding:0 10px 0 8px; border-radius:99px;
+  background: color-mix(in oklab, var(--ink) 9%, transparent); font: 500 12.5px/1 var(--f-texto); color:var(--ink-2); }
+.ponto{ width:7px; height:7px; border-radius:50%; background:var(--c, var(--ink-3)); flex:none; display:inline-block; }
+
+/* ===== rolo de dígitos ============================================ */
+.rolo{ display:inline-flex; white-space:pre; }
+/* dígitos empilhados na mesma célula: o slot nunca fica sem filho no fluxo (sem colapso no meio da rolagem) */
+.slot{ display:inline-grid; position:relative; overflow-x:visible; overflow-y:clip; overflow-clip-margin: 0px; }
+.dig{ display:block; grid-area:1/1; }
+
+/* ===== 2. dia ===================================================== */
+.w-dia{ padding:18px 20px 16px; }
+.w-dia .conteudo{ display:flex; flex-direction:column; gap:12px; }
+.dia-topo{ display:flex; align-items:center; gap:10px; min-height:36px; }
+.pilula{ position:relative; display:inline-grid; height:26px; align-items:center; --w:72px; transition: --w var(--dur-liquida) var(--mola-liquida); }
+.pil-fundo{ position:absolute; left:0; top:0; bottom:0; width:120px; border-radius:99px;
+  clip-path: inset(0 calc(120px - var(--w)) 0 0 round 99px);
+  background: color-mix(in oklab, var(--ink) 13%, transparent);
+  transition: background-color var(--dur-efeito) var(--ease-saida); }
+.pil-txt{ grid-area:1/1; justify-self:start; position:relative; padding:0 11px; font: 600 13px/26px var(--f-texto); white-space:nowrap; }
+.w-dia[data-estado="agora"] .pil-fundo{ background: var(--sol); }
+.w-dia[data-estado="agora"] .pil-txt{ color:#2B1B06; }
+.w-dia.urgente .pil-fundo{ background: color-mix(in oklab, var(--sol) 62%, transparent); }
+.w-dia.urgente .pil-txt{ color:#2B1B06; } /* branco sobre âmbar a 46% ficava abaixo de 4,5:1 */
+.btn-video{ margin-left:auto; width:38px; height:38px; border-radius:50%; border:0; cursor:pointer; display:grid; place-items:center;
+  background: color-mix(in oklab, var(--ink) 9%, transparent); color:var(--ink-3);
+  transition: background-color var(--dur-efeito) var(--ease-saida), color var(--dur-efeito) var(--ease-saida),
+              opacity var(--dur-efeito) var(--ease-saida), transform var(--dur-liquida) var(--mola-liquida); }
+.btn-video svg{ width:18px; height:18px; }
+.btn-video[data-aceso="1"]{ background: var(--ink); color: var(--inverso); }
+.btn-video[hidden]{ display:grid; opacity:0; transform:scale(.85); pointer-events:none; }
+.btn-video:active{ transform:scale(.95); transition-duration:100ms; }
+.dia-papel{ display:grid; min-height:92px; }
+.estado{ grid-area:1/1; display:flex; flex-direction:column; gap:4px; min-width:0; }
+.quando{ font: 500 14px/1.35 var(--f-texto); color:var(--ink-2); }
+.urgente .quando{ color:var(--ink); font-weight:600; }
+.titulo{ font: 600 24px/1.18 var(--f-display); letter-spacing:-.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sub{ display:flex; align-items:center; gap:7px; color:var(--ink-2); font-size:13.5px; }
+
+/* barras com folga: indicador e trilho separados por 4px, pontas redondas */
+.barra{ position:relative; height:6px; margin-top:10px; transition: --p var(--dur-dado) var(--mola-dado); }
+.barra > i{ position:absolute; inset:0; border-radius:99px; }
+.barra .b-ind{ background: var(--cor, var(--ink)); clip-path: inset(0 calc((1 - var(--p)) * 100%) 0 0 round 99px);
+  transition: background-color 250ms var(--ease-saida); }
+.barra .b-tri{ background: var(--trilho); clip-path: inset(0 0 0 min(100%, calc(var(--p) * 100% + 4px)) round 99px); }
+
+/* linha do dia 07–21h */
+.linha-dia{ position:relative; padding-top:18px; }
+.ld-trilho{ position:relative; height:10px; border-radius:99px; background: var(--trilho); }
+.ld-bloco{ position:absolute; top:0; bottom:0; border-radius:99px; background: var(--c); opacity:.9;
+  transition: opacity 300ms var(--ease-saida); }
+.ld-bloco.passado{ opacity:.35; }
+.ld-horas{ position:relative; height:12px; margin-top:7px; font: 400 11.5px/1 var(--f-mono); color:var(--ink-2); } /* fica sobre a brasa: ink-2 */
+.ld-horas span{ position:absolute; top:0; transform:translateX(-50%); }
+.ld-horas span:first-child{ transform:none; } .ld-horas span:last-child{ transform:translateX(-100%); }
+.ld-cursor{ position:absolute; left:0; right:0; top:10px; height:22px; pointer-events:none;
+  transform: translateX(calc(var(--x, 0) * 100%)); }
+.ld-cursor::before{ content:""; position:absolute; left:-1px; top:0; width:2px; height:22px; border-radius:2px; background: var(--sol-traco); }
+.ld-cursor::after{ content:""; position:absolute; left:-4px; top:-4px; width:8px; height:8px; border-radius:50%; background: var(--sol-traco); }
+.ld-reset{ position:absolute; left:0; right:0; top:0; height:16px; pointer-events:none; color:var(--ink-2);
+  transform: translateX(calc(var(--x, 0) * 100%)); transition: transform var(--dur-liquida) var(--mola-liquida), opacity 250ms var(--ease-saida); }
+.ld-reset.passou{ opacity:.4; }
+.ld-reset svg{ position:absolute; left:-6px; top:-8px; width:12px; height:12px; stroke-width:2.2; } /* top -8: fica acima da bolinha do cursor, não encosta quando a renovação cai perto de agora */
+.brasa{ position:absolute; left:0; right:0; bottom:-60px; height:150px; z-index:1; pointer-events:none; opacity:0;
+  transform: translateX(calc((var(--x, .5) - .5) * 100%));
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--sol) 70%, transparent), transparent);
+  transition: opacity var(--dur-dado) var(--ease-saida); }
+
+/* ===== 3. agenda ================================================== */
+.w-agenda{ padding:18px 8px 14px; }
+.w-agenda .conteudo{ display:flex; flex-direction:column; height:100%; }
+.ag-topo{ display:flex; align-items:center; justify-content:space-between; padding:0 12px 10px; }
+.ag-titulo{ font: 600 17px/1.2 var(--f-display); }
+.btn-ico{ width:34px; height:34px; border-radius:50%; border:0; cursor:pointer; display:grid; place-items:center; color:var(--ink-2);
+  background: transparent; transition: background-color var(--dur-hover) var(--ease-saida), transform 100ms var(--ease-saida); }
+@media (hover:hover){ .btn-ico:hover{ background: color-mix(in oklab, var(--ink) 9%, transparent); } } /* sem hover grudado no toque */
+.btn-ico:active{ transform:scale(.94); }
+.btn-ico[aria-pressed="true"]{ background: var(--ink); color: var(--inverso); }
+.argola{ transition: transform var(--dur-espacial) var(--mola-espacial); transform-origin: 16px 11px; }
+.btn-ico[aria-pressed="false"] .argola{ transform: translate(0,-2.5px) rotate(14deg); }
+.ag-lista{ position:relative; flex:1; min-height:0; overflow:hidden; padding:0 4px;
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 24px), transparent); mask-image: linear-gradient(#000 calc(100% - 24px), transparent); }
+.ag-lista > li{ display:flex; align-items:center; gap:10px; min-height:32px; padding:0 8px; border-radius: var(--raio-int); }
+.ag-lista > li.grupo{ min-height:30px; padding-top:10px; font: 600 13px/1.2 var(--f-texto); color:var(--ink-2); }
+.ag-lista > li.grupo:first-child{ padding-top:0; }
+.ag-lista > li.ev{ cursor:default; transition: background-color var(--dur-hover) var(--ease-saida); }
+@media (hover:hover){ .ag-lista > li.ev:hover{ background: color-mix(in oklab, var(--ink) 7%, transparent); } }
+.ev .h{ width:46px; flex:none; font: 400 13px/1 var(--f-mono); color:var(--ink-2); }
+.ev .h.inteiro{ font: 500 11.5px/1.1 var(--f-texto); }
+.ev .t{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; }
+.ev.agora .t{ font-weight:650; }
+.ev.agora .h{ color:var(--ink); }
+.ev .rec{ color:var(--ink-3); width:14px; height:14px; }
+.ag-lista > li.vao{ min-height:26px; padding-left:64px; color:var(--ink-3); font-size:12.5px; }
+.ag-lista > li.msg{ align-items:flex-start; gap:8px; padding:9px 10px; margin:0 0 6px; min-height:0;
+  background: color-mix(in oklab, var(--critico) 18%, transparent); font-size:12.5px; line-height:1.35; color:var(--ink); }
+.ag-lista > li.msg .ponto{ margin-top:4px; background:var(--critico); }
+.ag-pe{ padding:10px 12px 0; display:flex; flex-direction:column; gap:8px; }
+.ag-mais{ color:var(--ink-2); font-size:12.5px; }
+.fontes{ display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; color:var(--ink-3); }
+.fontes span{ display:inline-flex; align-items:center; gap:5px; transition: color 250ms var(--ease-saida); }
+.fontes .ponto{ width:6px; height:6px; background:var(--ok); transition: background-color 250ms var(--ease-saida); }
+.fontes .falha{ color:var(--ink); }
+.fontes .falha .ponto{ background:var(--critico); }
+
+/* ===== anéis ====================================================== */
+.anel{ position:relative; width:var(--tam,68px); height:var(--tam,68px); flex:none; }
+.anel svg{ width:100%; height:100%; transform:rotate(-90deg); overflow:visible;
+  transition: --p var(--dur-dado) var(--mola-dado); }
+.anel circle{ fill:none; stroke-width:8; stroke-linecap:round; }
+.anel .tri{ stroke: var(--trilho); stroke-dasharray: max(0px, calc((1 - var(--p)) * 263.894px - 26px)) 600px;
+  stroke-dashoffset: calc(-1 * (var(--p) * 263.894px + 13px)); }
+.anel .arc{ stroke: var(--cor, var(--ink-anel)); stroke-dasharray: calc(var(--p) * 263.894px) 600px;
+  transition: stroke 250ms var(--ease-saida), opacity 200ms var(--ease-saida); }
+.anel.vazio .arc{ opacity:0; }
+.anel.cheio .tri{ opacity:0; }
+.anel .marca{ fill: var(--cor, var(--ink)); stroke:none; opacity:0; transform-box: fill-box; transform-origin:center; transform: scale(.4);
+  transition: opacity 200ms var(--ease-saida), transform var(--dur-liquida) var(--mola-liquida); }
+.anel.zoom .marca{ opacity:1; transform:scale(1); }
+.anel-centro{ position:absolute; inset:0; display:grid; place-items:center; font: 600 17px/1 var(--f-display); font-variant-numeric:tabular-nums; }
+.anel-centro small{ font-size:.62em; font-weight:500; color:var(--ink-2); margin-left:1px; }
+.anel-centro .val{ display:inline-flex; align-items:baseline; }
+.anel.velho .anel-centro{ color:var(--ink-3); }
+
+/* ===== 4. máquina ================================================= */
+.w-maquina{ padding:18px 20px; }
+.w-maquina .conteudo{ display:flex; flex-direction:column; gap:16px; }
+.aneis{ display:flex; justify-content:space-between; gap:8px; }
+.medidor{ display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; }
+.medidor .rot{ font-size:12px; color:var(--ink-2); white-space:nowrap; }
+.medidor .rot b{ font-weight:600; color:var(--ink); }
+.cotas{ display:flex; flex-direction:column; gap:10px; }
+.cota{ display:flex; flex-direction:column; gap:0; font-size:12.5px; color:var(--ink-2); }
+.cota .barra{ margin-top:6px; }
+
+/* ===== 5. claude ================================================== */
+.w-claude{ padding:18px 20px; }
+.w-claude .conteudo{ display:flex; flex-direction:column; gap:12px; }
+.cl-topo{ display:flex; align-items:center; justify-content:space-between; }
+.cl-titulo{ font: 600 15px/1.2 var(--f-display); }
+.cl-corpo{ display:flex; align-items:center; gap:18px; }
+.cl-outra{ flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; }
+.cl-outra .nome{ font-size:12.5px; color:var(--ink-2); }
+.cl-barra{ display:grid; grid-template-columns: 22px 1fr 34px; align-items:center; gap:6px; font-size:12px; color:var(--ink-2); }
+.cl-barra .barra{ margin:0; }
+.cl-barra .v{ text-align:right; font-variant-numeric:tabular-nums; color:var(--ink); font-weight:500; }
+.cl-legenda{ font-size:12.5px; line-height:1.4; color:var(--ink-2); }
+.cl-legenda b{ color:var(--ink); font-weight:600; }
+.anel-claude .anel-centro{ font-size:24px; }
+
+/* ===== demonstração (fora dos widgets) ============================ */
+.demo{
+  position:relative; z-index:5; margin:8px 16px 24px; padding:12px 14px; border-radius:20px;
+  display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; font-size:12.5px;
+}
+.demo::before{ opacity:.45; }
+.demo .rot-demo{ color:var(--ink-3); font-size:12px; }
+.demo-hora{ display:flex; align-items:center; gap:10px; flex:1 1 280px; min-width:0; }
+.demo-hora output{ font: 600 14px/1 var(--f-mono); min-width:44px; }
+input[type=range]{ -webkit-appearance:none; appearance:none; flex:1; min-width:0; height:28px; background:transparent; cursor:pointer; margin:0; }
+input[type=range]::-webkit-slider-runnable-track{ height:6px; border-radius:99px; background: color-mix(in oklab, var(--ink) 20%, transparent); }
+input[type=range]::-moz-range-track{ height:6px; border-radius:99px; background: color-mix(in oklab, var(--ink) 20%, transparent); }
+input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:22px; height:22px; margin-top:-8px; border-radius:50%;
+  background:#fff; box-shadow: 0 1px 3px rgba(0,0,0,.3), 0 0 0 .5px rgba(0,0,0,.15); transition: transform 120ms var(--ease-saida); }
+input[type=range]:active::-webkit-slider-thumb{ transform:scale(1.12); }
+input[type=range]::-moz-range-thumb{ width:22px; height:22px; border:0; border-radius:50%; background:#fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.grupo-btn{ display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+.btn-demo{ height:30px; padding:0 11px; border-radius:99px; border:0; cursor:pointer; white-space:nowrap;
+  background: color-mix(in oklab, var(--ink) 8%, transparent); color:var(--ink-2);
+  transition: background-color var(--dur-hover) var(--ease-saida), color var(--dur-hover) var(--ease-saida), transform 100ms var(--ease-saida); }
+@media (hover:hover){ .btn-demo:hover{ background: color-mix(in oklab, var(--ink) 15%, transparent); color:var(--ink); } }
+.btn-demo:active{ transform:scale(.97); }
+.btn-demo[aria-pressed="true"]{ background: var(--ink); color: var(--inverso); }
+.amostra{ width:30px; padding:0; display:grid; place-items:center; }
+.amostra i{ width:18px; height:18px; border-radius:50%; background: var(--sw); box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); }
+.sep{ width:1px; height:22px; background: color-mix(in oklab, var(--ink) 16%, transparent); }
+
+/* ===== layouts ==================================================== */
+.w-relogio, .w-dia, .w-maquina, .w-claude{ min-width:0; }
+.w-agenda{ height:520px; }
+@media (min-width:720px){
+  .mesa{ grid-template-columns: minmax(300px, 360px) minmax(0,1fr); padding:28px; }
+  .w-relogio{ grid-column:1; } .w-dia{ grid-column:1; }
+  .w-agenda{ grid-column:2; grid-row:1 / 3; }
+  .par{ grid-column:1 / -1; grid-template-columns: minmax(0,1.6fr) minmax(0,1fr); }
+}
+@media (min-width:1100px){
+  .mesa{ min-height:100dvh; padding:40px 40px 150px; align-content:start;
+    grid-template-columns: 340px minmax(0,1fr) 380px; grid-template-rows: auto 1fr; }
+  .w-relogio{ grid-column:1; grid-row:1; }
+  .w-dia{ grid-column:1; grid-row:2; align-self:start; }
+  .w-agenda{ grid-column:3; grid-row:1 / 3; align-self:start; height:480px; }
+  .par{ grid-column:2; grid-row:2; align-self:end; justify-self:center; width:min(100%, 620px);
+    grid-template-columns: minmax(0,1fr) 264px; align-items:end; }
+  /* centraliza com `translate`, não `transform`: a entrada anima transform e não pode deslocar o painel */
+  .demo{ position:fixed; left:50%; bottom:16px; margin:0; width:min(940px, calc(100vw - 32px)); translate:-50% 0; }
+  .demo .demo-hora{ flex-basis:340px; }
+}
+
+/* ===== movimento reduzido ========================================= */
+@media (prefers-reduced-motion: reduce){
+  .pilula, .ld-reset, .argola, .btn-video, .marca, .anel svg, .barra{ transition-duration: 0ms !important; }
+  .papel{ transition-duration: 150ms; }
+}
+</style>
+</head>
+<body>
+<canvas class="papel ativo" id="papel-a" aria-hidden="true"></canvas>
+<canvas class="papel" id="papel-b" aria-hidden="true"></canvas>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs id="lentes"></defs>
+  <symbol id="i-video" viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="3.5"/><path d="M15.5 10.4 21 7.5v9l-5.5-2.9z"/></symbol>
+  <symbol id="i-rec" viewBox="0 0 24 24"><path d="M4.5 11a7.5 7.5 0 0 1 13-4.6L19.5 8.5"/><path d="M19.5 4v4.5H15"/><path d="M19.5 13a7.5 7.5 0 0 1-13 4.6L4.5 15.5"/><path d="M4.5 20v-4.5H9"/></symbol>
+</svg>
+
+<main class="mesa" id="mesa" aria-label="Widgets do Horizonte">
+
+  <section class="vidro widget w-relogio" data-w="relogio" aria-label="Relógio">
+    <div class="conteudo">
+      <p class="hora" aria-live="off"><span class="rolo" id="rel-hora"></span></p>
+      <div class="data-linha">
+        <span>sexta, 2 de outubro</span>
+        <span class="chip"><i class="ponto" style="--c:var(--c-fer)"></i>feriado seg 12/10</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="vidro widget w-dia" data-w="dia" aria-label="Seu dia" id="w-dia">
+    <div class="brasa" id="brasa"></div>
+    <div class="conteudo">
+      <div class="dia-topo">
+        <span class="pilula" id="pilula"><span class="pil-fundo"></span></span>
+        <button class="btn-video" id="btn-video" type="button" aria-label="Entrar na chamada" hidden>
+          <svg class="i"><use href="#i-video"/></svg>
+        </button>
+      </div>
+      <div class="dia-papel" id="dia-papel" aria-live="polite"></div>
+      <div class="linha-dia" aria-label="Linha do dia, das 7h às 21h">
+        <div class="ld-reset" id="ld-reset" title="Renovação da janela de 5h do Claude"><svg class="i"><use href="#i-rec"/></svg></div>
+        <div class="ld-trilho" id="ld-trilho"></div>
+        <div class="ld-cursor" id="ld-cursor"></div>
+        <div class="ld-horas" aria-hidden="true"><span style="left:0">07</span><span style="left:14.286%">09</span><span style="left:28.571%">11</span><span style="left:42.857%">13</span><span style="left:57.143%">15</span><span style="left:71.429%">17</span><span style="left:85.714%">19</span><span style="left:100%">21</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vidro widget w-agenda" data-w="agenda" aria-label="Agenda dos próximos 14 dias">
+    <div class="conteudo">
+      <div class="ag-topo">
+        <h2 class="ag-titulo">Próximos 14 dias</h2>
+        <button class="btn-ico" id="btn-privado" type="button" aria-pressed="false" aria-label="Modo privado">
+          <svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px"><rect x="5" y="11" width="14" height="10" rx="2.8"/><path class="argola" d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        </button>
+      </div>
+      <ul class="ag-lista" id="ag-lista"></ul>
+      <div class="ag-pe">
+        <p class="ag-mais" id="ag-mais">mais 6 eventos até 16/10</p>
+        <p class="fontes" id="fontes">
+          <span data-f="pess"><i class="ponto"></i>pessoal</span>
+          <span data-f="corp"><i class="ponto"></i>corporativo</span>
+          <span data-f="fer"><i class="ponto"></i>feriados</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="par">
+    <section class="vidro widget w-maquina" data-w="maquina" aria-label="Máquina">
+      <div class="conteudo">
+        <div class="aneis" id="aneis"></div>
+        <div class="cotas">
+          <div class="cota"><span>drive G, 26 de 100 GB livres</span><div class="barra" id="cota-g"><i class="b-tri"></i><i class="b-ind"></i></div></div>
+          <div class="cota"><span>drive I, 11 de 15 GB livres</span><div class="barra" id="cota-i"><i class="b-tri"></i><i class="b-ind"></i></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="vidro widget w-claude" data-w="claude" aria-label="Uso do Claude">
+      <div class="conteudo">
+        <div class="cl-topo"><h2 class="cl-titulo">Claude</h2></div>
+        <div class="cl-corpo">
+          <div class="anel anel-claude" id="anel-claude" style="--tam:92px"></div>
+          <div class="cl-outra">
+            <span class="nome">conta 6</span>
+            <div class="cl-barra"><span>5h</span><div class="barra" id="c6-5h"><i class="b-tri"></i><i class="b-ind"></i></div><span class="v" id="c6-5h-v"></span></div>
+            <div class="cl-barra"><span>7d</span><div class="barra" id="c6-7d"><i class="b-tri"></i><i class="b-ind"></i></div><span class="v" id="c6-7d-v"></span></div>
+          </div>
+        </div>
+        <p class="cl-legenda" id="cl-legenda"></p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<aside class="vidro demo" id="demo" data-w="demo" aria-label="Controles de demonstração">
+  <div class="demo-hora">
+    <label class="rot-demo" for="hora">Horário</label>
+    <input type="range" id="hora" min="420" max="1260" step="1" value="877">
+    <output id="hora-out" for="hora" class="mono">14:37</output>
+  </div>
+  <div class="grupo-btn" role="group" aria-label="Papel de parede">
+    <span class="rot-demo">Fundo</span>
+    <button class="btn-demo amostra" type="button" data-papel="grafite" aria-pressed="true" aria-label="Grafite, escuro" style="--sw:linear-gradient(135deg,#1B4741,#0B1D1C 55%,#C0602F)"><i></i></button>
+    <button class="btn-demo amostra" type="button" data-papel="tarde" aria-pressed="false" aria-label="Tarde, colorido" style="--sw:linear-gradient(135deg,#F7B38E,#F48A6A 45%,#3E66D8)"><i></i></button>
+    <button class="btn-demo amostra" type="button" data-papel="nevoa" aria-pressed="false" aria-label="Névoa, claro" style="--sw:linear-gradient(135deg,#F4F6F4,#AFC3BA 60%,#8FA79C)"><i></i></button>
+  </div>
+  <div class="grupo-btn" role="group" aria-label="Vidro">
+    <span class="rot-demo">Vidro</span>
+    <button class="btn-demo" type="button" data-vidro="claro" aria-pressed="false">Claro</button>
+    <button class="btn-demo" type="button" data-vidro="padrao" aria-pressed="true">Padrão</button>
+    <button class="btn-demo" type="button" data-vidro="fosco" aria-pressed="false">Fosco</button>
+  </div>
+  <button class="btn-demo" type="button" id="rever">Rever entrada</button>
+  <div class="grupo-btn" role="group" aria-label="Cena" style="flex-basis:100%">
+    <span class="rot-demo">Cena</span>
+    <button class="btn-demo" type="button" data-cena="normal" aria-pressed="true">Dia normal</button>
+    <button class="btn-demo" type="button" data-cena="carga" aria-pressed="false">PC sob carga</button>
+    <button class="btn-demo" type="button" data-cena="velho" aria-pressed="false">Bandeja sem medição nova</button>
+    <button class="btn-demo" type="button" data-cena="corp" aria-pressed="false">Agenda corporativa falhando</button>
+    <button class="btn-demo" type="button" data-cena="limite" aria-pressed="false">Claude no limite</button>
+  </div>
+</aside>
+
+<script>
+(() => {
+"use strict";
+
+/* ===== motion: tokens ============================================ */
+// Molas (rigidez, razão de amortecimento). Overshoot só no que é espacial; dado e cor nunca quicam.
+const MOLAS = {
+  liquida:  { k: 300, z: 0.62 }, // o "gel" do vidro: entrada dos widgets, pílula que morfa, botão que acende, marcador do reset (eventos raros)
+  espacial: { k: 380, z: 0.80 }, // conteúdo que entra, lista que se reorganiza (FLIP): quique quase invisível
+  digito:   { k: 700, z: 0.90 }, // dígito que rola (visto 1.440x/dia: quase sem quique)
+  dado:     { k: 260, z: 1.00 }, // anéis e barras: criticamente amortecido, dado não mente com quique
+  efeito:   { k: 1600, z: 1.00 } // opacidade e cor
+};
+const EASE_SAIDA = 'cubic-bezier(.23,1,.32,1)';
+const DUR = { saida: 160, hover: 140, clique: 100, papel: 700, escalonar: 70, cruzar: 150 };
+const DUR_RM = 150;
+
+const RM = matchMedia('(prefers-reduced-motion: reduce)');
+const temLinear = CSS.supports('animation-timing-function', 'linear(0, 1)');
+
+function mola({ k, z }) {
+  const m = 1, c = 2 * z * Math.sqrt(k * m), dt = 1 / 600;
+  let x = 0, v = 0, t = 0; const amostras = [0];
+  let parado = 0;
+  while (t < 2.5) {
+    const a = (-k * (x - 1) - c * v) / m; v += a * dt; x += v * dt; t += dt;
+    amostras.push(x);
+    if (Math.abs(1 - x) < 0.001 && Math.abs(v) < 0.02) { if (++parado > 12) break; } else parado = 0;
+  }
+  const n = 48, pts = [];
+  for (let i = 0; i <= n; i++) pts.push(+amostras[Math.round(i / n * (amostras.length - 1))].toFixed(4));
+  pts[n] = 1;
+  return { ease: temLinear ? `linear(${pts.join(', ')})` : EASE_SAIDA, dur: Math.round(t * 1000) };
+}
+const M = Object.fromEntries(Object.entries(MOLAS).map(([n, p]) => [n, mola(p)]));
+const raiz = document.documentElement;
+raiz.style.setProperty('--mola-espacial', M.espacial.ease); raiz.style.setProperty('--dur-espacial', M.espacial.dur + 'ms');
+raiz.style.setProperty('--mola-liquida', M.liquida.ease);   raiz.style.setProperty('--dur-liquida', M.liquida.dur + 'ms');
+raiz.style.setProperty('--mola-dado', M.dado.ease);         raiz.style.setProperty('--dur-dado', M.dado.dur + 'ms');
+raiz.style.setProperty('--mola-efeito', M.efeito.ease);     raiz.style.setProperty('--dur-efeito', M.efeito.dur + 'ms');
+if (RM.matches) ['dado', 'efeito'].forEach(n => raiz.style.setProperty(`--dur-${n}`, DUR_RM + 'ms')); // reduzido: só cruzamento curto
+
+/* ===== dados ilustrativos ========================================= */
+const EVENTOS = [
+  { id: 'e1', dia: 0, ini: 540,  fim: 555,  t: 'Daily do time',  ag: 'corp', rec: true,  video: true },
+  { id: 'e2', dia: 0, ini: 630,  fim: 690,  t: 'Revisão do BI',  ag: 'corp', video: true },
+  { id: 'e3', dia: 0, ini: 900,  fim: 930,  t: '1:1 semanal',    ag: 'corp', rec: true,  video: true },
+  { id: 'e4', dia: 0, ini: 1050, fim: 1110, t: 'Dentista',       ag: 'pess' },
+  { id: 'e5', dia: 1, inteiro: true,        t: 'Aniversário',    ag: 'pess', rec: true },
+  { id: 'e6', dia: 3, ini: 540,  fim: 555,  t: 'Daily do time',  ag: 'corp', rec: true,  video: true },
+  { id: 'e7', dia: 3, ini: 600,  fim: 660,  t: 'Comitê semanal', ag: 'corp', rec: true }
+];
+const GRUPOS = { 0: 'Hoje', 1: 'amanhã, sábado', 3: 'segunda, 5/10' };
+const NOME_AG = { corp: 'corporativo', pess: 'pessoal', fer: 'feriados' };
+const RESETS = [299, 599, 899, 1199]; // janelas de 5h do Claude (04:59, 09:59, 14:59, 19:59)
+
+const S = { t: 877, cena: 'normal', papel: 'grafite', vidro: 'padrao', privado: false, arrasto: false };
+
+/* ===== utilidades ================================================= */
+const $ = (s, r = document) => r.querySelector(s);
+const hm = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; // 19:59 + 5h = 00:59, nunca "24:59"
+  return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const dur = m => m < 60 ? `${m} min` : (m % 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}` : `${m / 60}h`);
+const animar = () => !RM.matches && !S.arrasto;
+const visivel = e => !(S.cena === 'corp' && e.ag === 'corp');
+const titulo = e => S.privado ? 'Compromisso' : e.t;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+/* ===== rolo de dígitos ============================================ */
+function rolo(el, txt, dir = 1, atraso = 0) {
+  const ant = el._v; el._v = txt;
+  if (ant === txt) return;
+  if (ant === undefined || ant.length !== txt.length || !animar()) {
+    el.replaceChildren(...[...txt].map(ch => slot(ch)));
+    if (ant !== undefined && !RM.matches && !S.arrasto)
+      el.animate([{ opacity: 0, filter: 'blur(3px)' }, { opacity: 1, filter: 'blur(0px)' }], { duration: 220, easing: EASE_SAIDA });
+    return;
+  }
+  [...txt].forEach((ch, i) => {
+    if (ch === ant[i]) return;
+    const s = el.children[i];
+    [...s.children].slice(0, -1).forEach(n => n.remove());
+    const velho = s.lastElementChild;
+    const novo = document.createElement('span'); novo.className = 'dig'; novo.textContent = ch;
+    s.append(novo);
+    const d = atraso + (txt.length - 1 - i) * 22;
+    velho.animate([{ transform: 'none', opacity: 1, filter: 'blur(0px)' },
+                   { transform: `translateY(${-dir * 55}%)`, opacity: 0, filter: 'blur(2px)' }],
+                  { duration: Math.round(M.digito.dur * .7), delay: d, easing: EASE_SAIDA, fill: 'forwards' })
+         .onfinish = () => velho.remove();
+    novo.animate([{ transform: `translateY(${dir * 70}%)`, opacity: 0, filter: 'blur(2px)' },
+                  { transform: 'none', opacity: 1, filter: 'blur(0px)' }],
+                 { duration: M.digito.dur, delay: d, easing: M.digito.ease, fill: 'backwards' });
+  });
+}
+function slot(ch) {
+  const s = document.createElement('span'); s.className = 'slot';
+  const d = document.createElement('span'); d.className = 'dig'; d.textContent = ch;
+  s.append(d); return s;
+}
+function roloEntrada(el, atraso) {
+  [...el.querySelectorAll('.dig')].forEach((d, i) => d.animate(
+    [{ transform: 'translateY(75%)', opacity: 0, filter: 'blur(3px)' }, { transform: 'none', opacity: 1, filter: 'blur(0px)' }],
+    { duration: M.digito.dur + 120, delay: atraso + i * 40, easing: M.espacial.ease, fill: 'backwards' }));
+}
+
+/* ===== anéis e barras ============================================= */
+function montarAnel(el, opts = {}) {
+  el.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true"><circle class="tri" cx="50" cy="50" r="42"/><circle class="arc" cx="50" cy="50" r="42"/><circle class="marca" cx="79" cy="50" r="3.6"/></svg>
+    <div class="anel-centro"><span class="val"><span class="rolo"></span>${opts.sufixo ? `<small>${opts.sufixo}</small>` : ''}</span></div>`;
+  el.setAttribute('role', 'img');
+}
+function anel(el, { p, cor = '', txt, dir = 1, zoom = false, velho = false, rotulo = '' }) {
+  const svg = el.querySelector('svg');
+  const vis = clamp(p, 0, 1);
+  svg.style.setProperty('--p', vis.toFixed(4));
+  el.style.setProperty('--cor', cor || '');
+  if (!cor) el.style.removeProperty('--cor');
+  el.classList.toggle('vazio', vis < 0.004);
+  el.classList.toggle('cheio', vis > 0.97);
+  el.classList.toggle('zoom', zoom);
+  el.classList.toggle('velho', velho);
+  if (txt !== undefined) rolo(el.querySelector('.rolo'), txt, dir);
+  if (rotulo) el.setAttribute('aria-label', rotulo);
+}
+function barra(el, p, cor) {
+  el.style.setProperty('--p', clamp(p, 0, 1).toFixed(4));
+  if (cor) el.style.setProperty('--cor', cor); else el.style.removeProperty('--cor');
+}
+
+/* ===== cálculo de estado ========================================== */
+function maquina() {
+  return S.cena === 'carga'
+    ? { cpu: 96, ram: 88, ramG: '13,4G', gpu: 41 }
+    : { cpu: 23, ram: 61, ramG: '9,3G', gpu: 12 };
+}
+const corCarga = v => v >= 95 ? 'var(--critico)' : v >= 85 ? 'var(--alerta)' : '';
+
+function claude() {
+  const t = S.t;
+  const ini = RESETS.filter(r => r <= t).pop() ?? RESETS[0];
+  const fim = ini + 300;
+  let p;
+  if (ini === 599)      p = 3 + (t - 599) / 278 * 68;   // 71% às 14:37
+  else if (ini === 899) p = 4 + (t - 899) * 0.11;       // renovou: 4%
+  else if (ini === 1199) p = 2 + (t - 1199) * 0.09;
+  else                  p = 18 + (t - 299) * 0.03;
+  p = Math.round(p);
+  if (S.cena === 'limite') p = 97;
+  return { p, fim, em: fim - t };
+}
+function corClaude(p, velho) {           // contrato com o app de bandeja
+  if (velho) return '#747684';
+  if (p >= 85) return '#E5484D';
+  if (p >= 60) return '#F5A623';
+  return '#30A46C';
+}
+
+function estadoDia() {
+  const t = S.t;
+  const evs = EVENTOS.filter(e => e.dia === 0 && !e.inteiro && visivel(e)).sort((a, b) => a.ini - b.ini);
+  const agora = evs.find(e => e.ini <= t && t < e.fim);
+  if (agora) return { papel: 'agora', e: agora, faltam: agora.fim - t, prog: (t - agora.ini) / (agora.fim - agora.ini), video: !!agora.video, aceso: !!agora.video };
+  const prox = evs.find(e => e.ini > t);
+  if (prox) { const em = prox.ini - t; return { papel: 'proximo', e: prox, em, urgente: em <= 15, video: !!prox.video, aceso: !!prox.video && em <= 10 }; }
+  const ult = evs[evs.length - 1];
+  return { papel: 'livre', desde: ult ? ult.fim : null };
+}
+
+/* ===== render: relógio ============================================ */
+function renderRelogio() { rolo($('#rel-hora'), hm(S.t), 1); }
+
+/* ===== render: dia ================================================ */
+const ROTULO = { agora: 'agora', proximo: 'próximo', livre: 'livre' };
+let chaveDia = null;
+function renderDia() {
+  const w = $('#w-dia'), st = estadoDia();
+  const chave = st.papel + (st.e ? st.e.id : '') + (S.privado ? 'p' : '');
+  const mudouPapel = w.dataset.estado !== st.papel;
+  w.dataset.estado = st.papel;
+  w.classList.toggle('urgente', !!st.urgente);
+
+  // pílula que morfa (clip-path, nunca width)
+  const pil = $('#pilula');
+  if (mudouPapel) {
+    pil.querySelectorAll('.pil-txt.saindo').forEach(n => n.remove()); // troca interrompida: quem já saía, sai já
+    const velho = pil.querySelector('.pil-txt');
+    const novo = document.createElement('span'); novo.className = 'pil-txt'; novo.textContent = ROTULO[st.papel];
+    pil.append(novo);
+    const larg = Math.ceil(novo.getBoundingClientRect().width);
+    pil.style.setProperty('--w', larg + 'px'); pil.style.width = larg + 'px';
+    if (velho) {
+      velho.classList.add('saindo');
+      if (animar()) {
+        velho.animate([{ opacity: 1 }, { opacity: 0, filter: 'blur(2px)' }], { duration: DUR.saida, easing: EASE_SAIDA, fill: 'forwards' }).onfinish = () => velho.remove();
+        novo.animate([{ opacity: 0, filter: 'blur(3px)' }, { opacity: 1, filter: 'blur(0px)' }], { duration: M.efeito.dur + 120, delay: 60, easing: EASE_SAIDA, fill: 'backwards' });
+      } else velho.remove();
+    }
+  }
+
+  // botão de vídeo
+  const bv = $('#btn-video');
+  bv.hidden = !st.video; bv.inert = !st.video;
+  const acendeu = st.aceso && bv.dataset.aceso !== '1';
+  bv.dataset.aceso = st.aceso ? '1' : '0';
+  bv.setAttribute('aria-label', st.aceso ? 'Entrar na chamada agora' : 'Chamada ainda não começou');
+  if (acendeu && animar()) bv.animate([{ transform: 'scale(.86)' }, { transform: 'scale(1)' }], { duration: M.liquida.dur, easing: M.liquida.ease });
+
+  // conteúdo: troca com saída curta e entrada com mola
+  const area = $('#dia-papel');
+  if (chave !== chaveDia) {
+    area.querySelectorAll('.estado.saindo').forEach(n => n.remove()); // troca interrompida: não empilha estados
+    const anterior = [...area.children];
+    const el = document.createElement('div'); el.className = 'estado';
+    el.innerHTML = htmlEstado(st);
+    area.append(el);
+    anterior.forEach(a => {
+      a.classList.add('saindo'); a.setAttribute('aria-hidden', 'true');
+      if (animar() && chaveDia !== null) a.animate([{ opacity: 1, transform: 'none', filter: 'blur(0px)' }, { opacity: 0, transform: 'translateY(-6px)', filter: 'blur(2px)' }],
+        { duration: DUR.saida, easing: EASE_SAIDA, fill: 'forwards' }).onfinish = () => a.remove();
+      else a.remove();
+    });
+    if (chaveDia !== null) {
+      if (animar()) el.animate([{ opacity: 0, transform: 'translateY(10px)', filter: 'blur(4px)' }, { opacity: 1, transform: 'none', filter: 'blur(0px)' }],
+        { duration: M.espacial.dur, delay: 60, easing: M.espacial.ease, fill: 'backwards' });
+      else if (!S.arrasto) el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: DUR.cruzar });
+    }
+    // brasa: acende uma vez ao entrar no AGORA, depois fica parada
+    if (st.papel === 'agora' && chaveDia !== null && animar())
+      $('#brasa').animate([{ opacity: 0 }, { opacity: .6, offset: .35 }, { opacity: .35 }], { duration: 640, easing: EASE_SAIDA });
+    chaveDia = chave;
+  }
+  const atual = area.lastElementChild;
+  atualizarEstado(atual, st);
+  // brasa contida: fica sob as horas da linha do dia, não pode derrubar o contraste delas
+  $('#brasa').style.opacity = st.papel === 'agora' ? .35 : st.urgente ? .18 : 0;
+}
+function htmlEstado(st) {
+  if (st.papel === 'livre') {
+    const desde = st.desde !== null ? `a partir de ${hm(st.desde)}` : 'hoje';
+    return `<p class="quando">nada mais na agenda hoje</p><h3 class="titulo">Dia livre ${desde}</h3>
+      <p class="sub"><i class="ponto" style="--c:var(--c-pess)"></i>amanhã: ${S.privado ? 'Compromisso' : 'Aniversário'}, dia todo</p>`;
+  }
+  const e = st.e, cor = `var(--c-${e.ag})`;
+  if (st.papel === 'agora') {
+    return `<p class="quando">termina ${hm(e.fim)}, faltam <span class="rolo num" data-r="faltam"></span> min</p>
+      <h3 class="titulo">${titulo(e)}</h3>
+      <div class="barra" data-r="prog"><i class="b-tri"></i><i class="b-ind"></i></div>`;
+  }
+  return `<p class="quando">em <span class="rolo num" data-r="em"></span></p>
+    <h3 class="titulo">${titulo(e)}</h3>
+    <p class="sub"><i class="ponto" style="--c:${cor}"></i>${hm(e.ini)} às ${hm(e.fim)}, ${NOME_AG[e.ag]}</p>`;
+}
+function atualizarEstado(el, st) {
+  if (!el) return;
+  if (st.papel === 'agora') {
+    rolo(el.querySelector('[data-r="faltam"]'), String(st.faltam), -1);
+    barra(el.querySelector('[data-r="prog"]'), st.prog, 'var(--sol-traco)');
+  } else if (st.papel === 'proximo') {
+    rolo(el.querySelector('[data-r="em"]'), st.em < 60 ? `${st.em} min` : dur(st.em), -1);
+  }
+}
+
+/* linha do dia */
+const X = m => clamp((m - 420) / 840, 0, 1);
+function renderLinha() {
+  const tr = $('#ld-trilho');
+  const evs = EVENTOS.filter(e => e.dia === 0 && !e.inteiro);
+  evs.forEach(e => {
+    let b = tr.querySelector(`[data-id="${e.id}"]`);
+    if (!b) {
+      b = document.createElement('i'); b.className = 'ld-bloco'; b.dataset.id = e.id;
+      b.style.left = (X(e.ini) * 100) + '%'; b.style.width = `max(6px, ${((X(e.fim) - X(e.ini)) * 100)}%)`;
+      b.style.setProperty('--c', `var(--c-${e.ag})`);
+      tr.append(b);
+    }
+    b.classList.toggle('passado', e.fim <= S.t);
+    const mostrar = visivel(e);
+    if (b._vis !== mostrar) {
+      b._vis = mostrar;
+      b.style.opacity = mostrar ? '' : '0';
+      if (mostrar && animar() && b._iniciado) { // termina na opacidade real (bloco passado fica a .35, não pula no fim)
+        const op = getComputedStyle(b).opacity;
+        b.animate([{ transform: 'scaleX(.4)', opacity: 0 }, { transform: 'none', opacity: op }], { duration: M.espacial.dur, easing: M.espacial.ease });
+      }
+      b._iniciado = true;
+    }
+  });
+  const x = X(S.t);
+  $('#ld-cursor').style.setProperty('--x', x);
+  $('#brasa').style.setProperty('--x', x);
+  // próxima renovação dentro da faixa 07–21h; depois das 19:59 a próxima (00:59) fica fora: marca a última, apagada
+  const prox = RESETS.find(r => r > S.t && r >= 420);
+  const marca = prox ?? RESETS[RESETS.length - 1];
+  const rs = $('#ld-reset');
+  rs.style.setProperty('--x', X(marca));
+  rs.classList.toggle('passou', prox === undefined);
+  rs.title = prox !== undefined ? `Janela de 5h do Claude renova às ${hm(prox)}` : `Janela de 5h do Claude renovou às ${hm(marca)}; a próxima é ${hm(marca + 300)}`;
+}
+
+/* ===== render: agenda (com FLIP) ================================== */
+function itensAgenda() {
+  const t = S.t, itens = [];
+  if (S.cena === 'corp') itens.push({ k: 'msg', tipo: 'msg' });
+  [0, 1, 3].forEach(dia => {
+    let evs = EVENTOS.filter(e => e.dia === dia && visivel(e));
+    if (dia === 0) evs = evs.filter(e => e.fim > t);
+    evs.sort((a, b) => (a.inteiro ? -1 : a.ini) - (b.inteiro ? -1 : b.ini));
+    if (!evs.length && dia !== 0) return;
+    itens.push({ k: 'g' + dia, tipo: 'grupo', txt: GRUPOS[dia] });
+    if (!evs.length) { itens.push({ k: 'nada' + dia, tipo: 'vao', txt: 'nada mais hoje' }); return; }
+    evs.forEach((e, i) => {
+      itens.push({ k: e.id, tipo: 'ev', e, agora: dia === 0 && e.ini <= t });
+      const prox = evs[i + 1];
+      if (dia === 0 && prox && prox.ini - e.fim >= 45 && e.fim >= t)
+        itens.push({ k: 'v' + e.id + prox.id, tipo: 'vao', txt: `livre ${hm(e.fim)} às ${hm(prox.ini)}, ${dur(prox.ini - e.fim)}` });
+    });
+  });
+  return itens;
+}
+function htmlItem(it) {
+  if (it.tipo === 'grupo') return it.txt;
+  if (it.tipo === 'vao') return it.txt;
+  if (it.tipo === 'msg') return `<i class="ponto"></i><span>Agenda corporativa sem resposta desde ${hm(Math.max(0, S.t - 32))} (há 32 min). Os eventos dela ficam ocultos até a próxima sincronização dar certo.</span>`;
+  const e = it.e;
+  const h = e.inteiro ? `<span class="h inteiro">dia todo</span>` : `<span class="h">${hm(e.ini)}</span>`;
+  return `${h}<i class="ponto" style="--c:var(--c-${e.ag})"></i><span class="t">${titulo(e)}</span>${e.rec ? '<svg class="i rec" role="img" aria-label="recorrente"><use href="#i-rec"/></svg>' : ''}`;
+}
+function renderAgenda(opts = {}) {
+  const ul = $('#ag-lista');
+  const itens = itensAgenda();
+  const novos = new Set(itens.map(i => i.k));
+  const primeiro = new Map();
+  const ulRect = ul.getBoundingClientRect();
+  [...ul.children].forEach(li => primeiro.set(li.dataset.k, li.getBoundingClientRect()));
+  const mover = animar() && !opts.instante;
+
+  // saídas: congeladas onde estavam, somem rápido
+  [...ul.children].forEach(li => {
+    if (novos.has(li.dataset.k)) return;
+    if (!mover) { li.remove(); return; }
+    const r = primeiro.get(li.dataset.k);
+    li.style.cssText += `;position:absolute;left:${r.left - ulRect.left}px;top:${r.top - ulRect.top}px;width:${r.width}px;pointer-events:none`;
+    li.dataset.k = '_saindo';
+    li.animate([{ opacity: 1, transform: 'none', filter: 'blur(0px)' }, { opacity: 0, transform: 'translateY(-4px) scale(.98)', filter: 'blur(3px)' }],
+      { duration: 180, easing: EASE_SAIDA, fill: 'forwards' }).onfinish = () => li.remove();
+  });
+  // entradas e reordenação
+  let ref = null, entrou = 0;
+  itens.forEach(it => {
+    let li = ul.querySelector(`:scope > li[data-k="${it.k}"]`);
+    const html = htmlItem(it);
+    if (!li) {
+      li = document.createElement('li'); li.dataset.k = it.k; li.className = it.tipo; li._novo = true;
+    }
+    if (li._html !== html) {
+      const trocouTitulo = li._html && it.tipo === 'ev' && li._priv !== S.privado;
+      li.innerHTML = html; li._html = html; li._priv = S.privado;
+      if (trocouTitulo && !RM.matches) li.querySelector('.t').animate([{ opacity: 0, filter: 'blur(4px)' }, { opacity: 1, filter: 'blur(0px)' }], { duration: 260, easing: EASE_SAIDA });
+    }
+    li.classList.toggle('agora', !!it.agora);
+    const alvo = ref ? ref.nextElementSibling : ul.firstElementChild;
+    if (alvo !== li) ul.insertBefore(li, alvo);
+    ref = li;
+  });
+  // FLIP: quem ficou desliza da posição antiga para a nova, com mola
+  [...ul.children].forEach(li => {
+    if (li.dataset.k === '_saindo') return;
+    if (li._novo) {
+      li._novo = false;
+      if (mover && !opts.primeira) li.animate([{ opacity: 0, transform: 'translateY(8px)', filter: 'blur(4px)' }, { opacity: 1, transform: 'none', filter: 'blur(0px)' }],
+        { duration: M.espacial.dur, delay: 90 + (entrou++) * 30, easing: M.espacial.ease, fill: 'backwards' });
+      return;
+    }
+    const a = primeiro.get(li.dataset.k); if (!a || !mover) return;
+    const b = li.getBoundingClientRect(), dy = a.top - b.top;
+    if (Math.abs(dy) > 0.5) li.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: M.espacial.dur, easing: M.espacial.ease });
+  });
+
+  const corp = S.cena === 'corp';
+  $('#ag-mais').textContent = corp ? 'mais 3 eventos até 16/10' : 'mais 6 eventos até 16/10';
+  const f = $('#fontes [data-f="corp"]');
+  f.classList.toggle('falha', corp);
+  f.lastChild.textContent = corp ? 'corporativo sem resposta' : 'corporativo';
+  f.setAttribute('aria-label', corp ? 'Agenda corporativa: falhando' : 'Agenda corporativa: em dia');
+}
+
+/* ===== render: máquina ============================================ */
+const MEDIDORES = [
+  { id: 'cpu', rot: 'CPU' }, { id: 'ram', rot: 'RAM' }, { id: 'gpu', rot: 'GPU' }, { id: 'ssd', rot: 'C:' }
+];
+function montarMaquina() {
+  $('#aneis').innerHTML = MEDIDORES.map(m => `<div class="medidor"><div class="anel" id="anel-${m.id}" style="--tam:66px"></div><span class="rot" id="rot-${m.id}">${m.rot}</span></div>`).join('');
+  MEDIDORES.forEach(m => montarAnel($('#anel-' + m.id), { sufixo: m.id === 'ssd' ? 'GB' : '%' }));
+}
+let ultMaq = {};
+function renderMaquina() {
+  const v = maquina();
+  const dir = (k, n) => (ultMaq[k] === undefined || n >= ultMaq[k]) ? 1 : -1;
+  anel($('#anel-cpu'), { p: v.cpu / 100, cor: corCarga(v.cpu), txt: String(v.cpu), dir: dir('cpu', v.cpu), rotulo: `CPU ${v.cpu}%` });
+  anel($('#anel-ram'), { p: v.ram / 100, cor: corCarga(v.ram), txt: String(v.ram), dir: dir('ram', v.ram), rotulo: `RAM ${v.ram}%, ${v.ramG}` });
+  anel($('#anel-gpu'), { p: v.gpu / 100, cor: corCarga(v.gpu), txt: String(v.gpu), dir: dir('gpu', v.gpu), rotulo: `GPU ${v.gpu}%` });
+  anel($('#anel-ssd'), { p: .83, cor: '', txt: '80', rotulo: 'Disco C: 83% usado, 80 GB livres' });
+  $('#rot-ram').innerHTML = `RAM <b>${v.ramG}</b>`;
+  $('#rot-ssd').innerHTML = `C: livres`;
+  ultMaq = { cpu: v.cpu, ram: v.ram, gpu: v.gpu };
+  barra($('#cota-g'), 74 / 100);
+  barra($('#cota-i'), 4 / 15);
+}
+
+/* ===== render: claude ============================================= */
+let ultClaude;
+function renderClaude() {
+  const c = claude(), velho = S.cena === 'velho';
+  const zoom = c.p >= 95 && !velho;
+  const p = zoom ? (c.p - 95) / 5 : c.p / 100;
+  const dir = ultClaude === undefined || c.p >= ultClaude ? 1 : -1;
+  const cor = corClaude(c.p, velho);
+  anel($('#anel-claude'), { p, cor, txt: String(c.p), dir, zoom, velho,
+    rotulo: velho ? `Claude: última medição ${c.p}%, sem dado novo há 25 min` : `Claude, janela de 5h da conta 4: ${c.p}%` + (zoom ? ', escala ampliada de 95 a 100' : '') });
+  ultClaude = c.p;
+  const leg = $('#cl-legenda');
+  const em = c.em < 60 ? `${c.em} min` : dur(c.em);
+  let txt = `5h, <b>conta 4</b>, renova ${hm(c.fim)} (em ${em})`;
+  if (zoom) txt += `<br>arco ampliado: 95 a 100`;
+  if (velho) txt = `sem medição nova desde ${hm(Math.max(0, S.t - 25))} (há 25 min)<br>5h, conta 4, renova ${hm(c.fim)}`;
+  if (leg._txt !== txt) { leg.innerHTML = txt; leg._txt = txt; }
+  barra($('#c6-5h'), .12, velho ? '#747684' : corClaude(12));
+  barra($('#c6-7d'), .90, velho ? '#747684' : corClaude(90));
+  $('#c6-5h-v').textContent = '12%'; $('#c6-7d-v').textContent = '90%';
+}
+
+function renderTudo(opts) {
+  renderRelogio(); renderDia(); renderLinha(); renderAgenda(opts); renderMaquina(); renderClaude();
+  $('#hora-out').textContent = hm(S.t);
+  $('#hora').setAttribute('aria-valuetext', hm(S.t));
+  luzAlvo = S.t;
+  pedirLuz();
+}
+
+/* ===== papel de parede (canvas, gerado) =========================== */
+const PAPEIS = {
+  grafite: { base: ['#17302E', '#070F0E'], sombra: 'rgba(0,0,0,.6)', grao: .10, ang: -15, semente: 7, dobras: [
+    { de: '#0F2E2C', para: '#0A1B1A', y: .12, amp: .09, desf: 44, luz: 'rgba(140,210,200,.20)' },
+    { de: '#1C4842', para: '#0E2623', y: .30, amp: .11, desf: 24, luz: 'rgba(160,225,205,.26)' },
+    { de: '#2D4A36', para: '#111B15', y: .47, amp: .09, desf: 11, luz: 'rgba(205,225,170,.24)' },
+    { de: '#C2622F', para: '#3A190F', y: .615, amp: .085, desf: 2.5, luz: 'rgba(255,214,170,.8)' },
+    { de: '#0F1715', para: '#060A09', y: .75, amp: .07, desf: 0, luz: 'rgba(255,190,140,.42)' } ] },
+  tarde: { base: ['#FBE6D6', '#F2BFA6'], sombra: 'rgba(120,40,20,.28)', grao: .07, ang: -20, semente: 21, dobras: [
+    { de: '#FAD9A2', para: '#F6B98E', y: .10, amp: .10, desf: 40, luz: 'rgba(255,255,255,.5)' },
+    { de: '#F28566', para: '#F7B08A', y: .28, amp: .12, desf: 20, luz: 'rgba(255,236,220,.6)' },
+    { de: '#3B63D6', para: '#86A4F2', y: .45, amp: .10, desf: 8, luz: 'rgba(225,235,255,.7)' },
+    { de: '#F7C3D0', para: '#FCE5E7', y: .60, amp: .09, desf: 2, luz: 'rgba(255,255,255,.85)' },
+    { de: '#FFF3E8', para: '#F8D6C2', y: .76, amp: .07, desf: 0, luz: 'rgba(255,255,255,.9)' } ] },
+  nevoa: { base: ['#EEF2EF', '#D7E0DB'], sombra: 'rgba(30,60,50,.22)', grao: .06, ang: -12, semente: 3, dobras: [
+    { de: '#CAD7D0', para: '#E7EDE9', y: .12, amp: .09, desf: 40, luz: 'rgba(255,255,255,.6)' },
+    { de: '#B1C5BC', para: '#D6E1DB', y: .30, amp: .11, desf: 20, luz: 'rgba(255,255,255,.7)' },
+    { de: '#F5F7F5', para: '#DCE5E0', y: .47, amp: .09, desf: 8, luz: 'rgba(255,255,255,.9)' },
+    { de: '#8EA89C', para: '#C4D3CB', y: .62, amp: .085, desf: 2, luz: 'rgba(255,255,255,.75)' },
+    { de: '#FBFCFB', para: '#E6EDE9', y: .77, amp: .07, desf: 0, luz: 'rgba(255,255,255,.95)' } ] }
+};
+function aleatorio(s) { return () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let tileGrao;
+function grao() {
+  if (tileGrao) return tileGrao;
+  const c = document.createElement('canvas'); c.width = c.height = 160;
+  const x = c.getContext('2d'), d = x.createImageData(160, 160), r = aleatorio(99);
+  for (let i = 0; i < d.data.length; i += 4) { const v = r() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+  x.putImageData(d, 0, 0); return (tileGrao = c);
+}
+/* A pintura (blur + sombra de canvas) custa centenas de ms: feita no clique, travava a thread bem no início do
+   cruzamento de 700 ms. Agora cada papel é pintado uma vez num canvas de cache (o atual na hora, os outros no
+   ocioso) e a troca só copia o bitmap. */
+const cachePapel = new Map();
+function tamPapel() {
+  const dpr = Math.min(1.5, devicePixelRatio || 1);
+  return { dpr, W: Math.round(innerWidth * dpr), H: Math.round(Math.max(innerHeight, screen.height * .5) * dpr) };
+}
+function papelPronto(nome) {
+  const { dpr, W, H } = tamPapel(), k = `${nome}:${W}x${H}`;
+  if (!cachePapel.has(k)) { const c = document.createElement('canvas'); desenharPapel(c, nome, W, H, dpr); cachePapel.set(k, c); }
+  return cachePapel.get(k);
+}
+function preaquecerPapeis() {
+  const fila = Object.keys(PAPEIS).filter(n => n !== S.papel);
+  const ocioso = window.requestIdleCallback || (f => setTimeout(f, 200));
+  const passo = () => { const n = fila.shift(); if (!n) return; papelPronto(n); ocioso(passo); };
+  ocioso(passo);
+}
+function pintarPapel(cv, nome) {
+  const src = papelPronto(nome);
+  cv.width = src.width; cv.height = src.height;
+  cv.getContext('2d').drawImage(src, 0, 0);
+  cv._nome = nome;
+}
+function desenharPapel(cv, nome, W, H, dpr) {
+  const P = PAPEIS[nome];
+  cv.width = W; cv.height = H;
+  const x = cv.getContext('2d'), s = dpr, r = aleatorio(P.semente);
+  const g0 = x.createRadialGradient(W * .72, H * .2, 0, W * .5, H * .5, Math.hypot(W, H) * .7);
+  g0.addColorStop(0, P.base[0]); g0.addColorStop(1, P.base[1]);
+  x.fillStyle = g0; x.fillRect(0, 0, W, H);
+  const D = Math.hypot(W, H);
+  x.save(); x.translate(W / 2, H / 2); x.rotate(P.ang * Math.PI / 180);
+  P.dobras.forEach((d, i) => {
+    const base = -D / 2 + d.y * D, pts = [];
+    const n = 5;
+    for (let j = 0; j <= n; j++) pts.push([-D / 2 - D * .1 + j * (D * 1.2 / n), base + (r() - .5) * 2 * d.amp * D]);
+    const curva = ctx => {
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let j = 1; j < pts.length - 1; j++) {
+        const mx = (pts[j][0] + pts[j + 1][0]) / 2, my = (pts[j][1] + pts[j + 1][1]) / 2;
+        ctx.quadraticCurveTo(pts[j][0], pts[j][1], mx, my);
+      }
+      ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+    };
+    const gr = x.createLinearGradient(-D / 2, 0, D / 2, base * .2);
+    gr.addColorStop(0, d.de); gr.addColorStop(1, d.para);
+    x.save();
+    x.filter = d.desf ? `blur(${d.desf * s}px)` : 'none';
+    x.shadowColor = P.sombra; x.shadowBlur = 70 * s; x.shadowOffsetY = -16 * s;
+    x.beginPath(); curva(x); x.lineTo(D, D); x.lineTo(-D, D); x.closePath();
+    x.fillStyle = gr; x.fill();
+    x.restore();
+    x.save();
+    x.filter = `blur(${Math.max(.5, d.desf * .45) * s}px)`;
+    x.beginPath(); curva(x);
+    x.strokeStyle = d.luz; x.lineWidth = 1.6 * s; x.stroke();
+    x.restore();
+  });
+  x.restore();
+  x.save(); x.globalCompositeOperation = 'overlay'; x.globalAlpha = P.grao;
+  x.fillStyle = x.createPattern(grao(), 'repeat'); x.fillRect(0, 0, W, H); x.restore();
+}
+let cvAtivo = $('#papel-a'), cvOutro = $('#papel-b');
+function trocarPapel(nome, inicial) {
+  S.papel = nome;
+  pintarPapel(cvOutro, nome);
+  cvOutro.style.transitionDuration = (inicial || RM.matches) ? (RM.matches ? '150ms' : '0ms') : DUR.papel + 'ms';
+  cvOutro.classList.add('ativo'); cvAtivo.classList.remove('ativo');
+  [cvAtivo, cvOutro] = [cvOutro, cvAtivo];
+  amostrar();
+}
+
+/* ===== amostra do fundo: a cor vem do papel de parede ============== */
+/* Piso de legibilidade: para cada vidro, escolhe a tinta (clara/escura) que exige MENOS reforço e sobe a opacidade
+   da base (--base-vidro) só o necessário para o texto pequeno mais fraco (ink-3) dar ≥ 4,5:1 sobre o PIOR pixel
+   do papel de parede sob o widget (o mais claro para tinta clara, o mais escuro para tinta escura).
+   A conta reproduz o que o CSS faz: color-mix(oklab, amostra 16%, base α) pré-multiplicado, composto sobre o fundo. */
+const MW = 192, MH = 120;
+const PRESET = { claro: { clara: .10, escura: .16 }, padrao: { clara: .24, escura: .34 }, fosco: { clara: .58, escura: .72 } };
+const TINTA = { clara: { base: [14, 16, 18], ink: [255, 255, 255], a3: .66 }, escura: { base: [255, 255, 255], ink: [19, 21, 23], a3: .68 } };
+const ALVO_CONTRASTE = 5.0; // 4,5 + folga para saturate(1.7), brilho interno e amostragem reduzida
+const lin = c => { c /= 255; return c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4); };
+const lum = ([r, g, b]) => .2126 * lin(r) + .7152 * lin(g) + .0722 * lin(b);
+const contraste = (a, b) => (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+function contrasteCom(tinta, a, P, am) {
+  const T = TINTA[tinta], A = .16 + .84 * a;
+  const C = [0, 1, 2].map(j => .16 * am[j] + .84 * a * T.base[j] + (1 - A) * P[j]);
+  const txt = C.map((v, j) => T.a3 * T.ink[j] + (1 - T.a3) * v);
+  return contraste(lum(txt), lum(C));
+}
+function alfaMinimo(tinta, P, am) {
+  let lo = PRESET[S.vidro][tinta];
+  if (contrasteCom(tinta, lo, P, am) >= ALVO_CONTRASTE) return lo;
+  let hi = .97;
+  if (contrasteCom(tinta, hi, P, am) < ALVO_CONTRASTE) return hi;
+  for (let k = 0; k < 14; k++) { const m = (lo + hi) / 2; if (contrasteCom(tinta, m, P, am) >= ALVO_CONTRASTE) hi = m; else lo = m; }
+  return hi;
+}
+let mini, miniCtx;
+function amostrar() {
+  if (!mini) { mini = document.createElement('canvas'); mini.width = MW; mini.height = MH; miniCtx = mini.getContext('2d', { willReadFrequently: true }); }
+  miniCtx.drawImage(cvAtivo, 0, 0, MW, MH);
+  const dados = miniCtx.getImageData(0, 0, MW, MH).data;
+  const rc = cvAtivo.getBoundingClientRect(), vw = rc.width || innerWidth, vh = rc.height || innerHeight; // tamanho CSS real do papel
+  document.querySelectorAll('.vidro').forEach(w => {
+    const r = w.getBoundingClientRect();
+    const x0 = clamp(Math.floor(r.left / vw * MW), 0, MW - 1), x1 = clamp(Math.ceil(r.right / vw * MW), x0 + 1, MW);
+    const y0 = clamp(Math.floor(r.top / vh * MH), 0, MH - 1), y1 = clamp(Math.ceil(r.bottom / vh * MH), y0 + 1, MH);
+    let R = 0, G = 0, B = 0, n = 0, lMax = -1, lMin = 2, claro = null, escuro = null;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const i = (y * MW + x) * 4, px = [dados[i], dados[i + 1], dados[i + 2]];
+      R += px[0]; G += px[1]; B += px[2]; n++;
+      const L = lum(px);
+      if (L > lMax) { lMax = L; claro = px; }
+      if (L < lMin) { lMin = L; escuro = px; }
+    }
+    const am = [R / n, G / n, B / n];
+    const aClara = alfaMinimo('clara', claro, am), aEscura = alfaMinimo('escura', escuro, am);
+    // custo = reforço acima do nível escolhido; histerese evita a tinta piscar durante a rolagem
+    const custoC = aClara - PRESET[S.vidro].clara, custoE = aEscura - PRESET[S.vidro].escura;
+    const atual = w.dataset.tinta;
+    let tinta = (custoC < .001 && custoE < .001) ? (lum(am) > .2 ? 'escura' : 'clara') // as duas passam sem reforço: decide pelo fundo médio
+              : custoC <= custoE ? 'clara' : 'escura';
+    if (atual && atual !== tinta && Math.abs(custoC - custoE) < .05) tinta = atual;
+    const a = tinta === 'clara' ? aClara : aEscura, b = TINTA[tinta].base;
+    w.dataset.tinta = tinta;
+    w.style.setProperty('--amostra', `rgb(${am[0] | 0} ${am[1] | 0} ${am[2] | 0})`);
+    w.style.setProperty('--base-vidro', `rgb(${b[0]} ${b[1]} ${b[2]} / ${a.toFixed(3)})`);
+    w._contraste = +contrasteCom(tinta, a, tinta === 'clara' ? claro : escuro, am).toFixed(2); // inspeção
+  });
+}
+
+/* ===== lente: refração na borda (Chromium) ======================== */
+const refrata = !!(navigator.userAgentData && navigator.userAgentData.brands.some(b => /Chromium|Google Chrome|Microsoft Edge/.test(b.brand)));
+if (refrata) raiz.classList.add('refrata');
+const BLUR_LENTE = { claro: 2.5, padrao: 8, fosco: 18 };
+function mapaLente(W, H, raio, banda) {
+  const f = .5, w = Math.max(2, Math.round(W * f)), h = Math.max(2, Math.round(H * f));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d'), img = x.createImageData(w, h);
+  const hx = W / 2, hy = H / 2, R = Math.min(raio, hx, hy);
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    const px = (i + .5) / f - hx, py = (j + .5) / f - hy;
+    const qx = Math.abs(px) - (hx - R), qy = Math.abs(py) - (hy - R);
+    const ox = Math.max(qx, 0), oy = Math.max(qy, 0);
+    const dist = -(Math.hypot(ox, oy) + Math.min(Math.max(qx, qy), 0) - R); // distância até a borda, para dentro
+    let nx = 0, ny = 0;
+    if (qx > 0 && qy > 0) { const l = Math.hypot(qx, qy) || 1; nx = -Math.sign(px) * qx / l; ny = -Math.sign(py) * qy / l; }
+    else if (qx > qy) nx = -Math.sign(px); else ny = -Math.sign(py);
+    const m = dist < banda ? Math.pow(1 - clamp(dist, 0, banda) / banda, 2) : 0;
+    const k = (j * w + i) * 4;
+    img.data[k] = 128 + nx * m * 127; img.data[k + 1] = 128 + ny * m * 127; img.data[k + 2] = 128; img.data[k + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+  return c.toDataURL();
+}
+function montarLentes() {
+  if (!refrata) return;
+  const defs = $('#lentes'); defs.innerHTML = '';
+  const NS = 'http://www.w3.org/2000/svg';
+  document.querySelectorAll('.widget').forEach(w => {
+    const W = Math.round(w.offsetWidth), H = Math.round(w.offsetHeight);
+    if (!W || !H) return;
+    const raioCss = parseFloat(getComputedStyle(w).borderTopLeftRadius) || 26;
+    const raio = CSS.supports('corner-shape', 'squircle') ? raioCss * .62 : raioCss;
+    const id = 'lente-' + w.dataset.w;
+    const f = document.createElementNS(NS, 'filter');
+    f.setAttribute('id', id); f.setAttribute('x', 0); f.setAttribute('y', 0); f.setAttribute('width', W); f.setAttribute('height', H);
+    f.setAttribute('filterUnits', 'userSpaceOnUse'); f.setAttribute('primitiveUnits', 'userSpaceOnUse');
+    f.setAttribute('color-interpolation-filters', 'sRGB');
+    f.innerHTML = `<feGaussianBlur in="SourceGraphic" stdDeviation="${BLUR_LENTE[S.vidro]}" edgeMode="duplicate" result="b"/>
+      <feImage href="${mapaLente(W, H, raio, 34)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none" result="m"/>
+      <feDisplacementMap in="b" in2="m" scale="88" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feColorMatrix in="d" type="saturate" values="1.7"/>`;
+    defs.append(f);
+    w.style.setProperty('--lente', `url(#${id})`);
+  });
+}
+
+/* ===== luz: o sol do horário acende a borda dos widgets ============ */
+let luzAtual = S.t, luzAlvo = S.t, luzRaf = 0, luzUlt = 0;
+const CORES_LUZ = [[420, [214, 230, 255]], [660, [255, 255, 255]], [960, [255, 250, 240]], [1080, [255, 226, 186]], [1260, [255, 178, 132]]];
+function corLuz(t) {
+  for (let i = 0; i < CORES_LUZ.length - 1; i++) {
+    const [a, ca] = CORES_LUZ[i], [b, cb] = CORES_LUZ[i + 1];
+    if (t <= b) { const k = clamp((t - a) / (b - a), 0, 1); return ca.map((v, j) => Math.round(v + (cb[j] - v) * k)); }
+  }
+  return CORES_LUZ[CORES_LUZ.length - 1][1];
+}
+function aplicarLuz(t) {
+  const f = clamp((t - 420) / 840, 0, 1);
+  const sx = (-.08 + 1.16 * f) * innerWidth, sy = (.95 - Math.sin(Math.PI * f) * 1.25) * innerHeight;
+  const [r, g, b] = corLuz(t);
+  raiz.style.setProperty('--luz', `rgb(${r} ${g} ${b})`);
+  document.querySelectorAll('.vidro').forEach(w => {
+    const q = w.getBoundingClientRect();
+    const lx = clamp((sx - q.left) / q.width * 100, -60, 160), ly = clamp((sy - q.top) / q.height * 100, -80, 180);
+    const cx = q.left + q.width / 2, cy = q.top + q.height / 2;
+    let dx = sx - cx, dy = sy - cy; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+    w.style.setProperty('--lx', lx.toFixed(1) + '%'); w.style.setProperty('--ly', ly.toFixed(1) + '%');
+    w.style.setProperty('--ix', (-dx * 2).toFixed(2) + 'px'); w.style.setProperty('--iy', (-dy * 2).toFixed(2) + 'px');
+    w.style.setProperty('--sx', (-dx * 10).toFixed(1) + 'px'); w.style.setProperty('--sy', (Math.max(4, -dy * 14)).toFixed(1) + 'px');
+  });
+}
+function pedirLuz() { if (!luzRaf) { luzUlt = performance.now(); luzRaf = requestAnimationFrame(passoLuz); } }
+function passoLuz(agora) {
+  const dt = Math.min(.05, (agora - luzUlt) / 1000); luzUlt = agora;
+  if (RM.matches || S.arrasto) luzAtual = luzAlvo;
+  else luzAtual += (luzAlvo - luzAtual) * (1 - Math.exp(-dt * 9)); // seguidor amortecido: anda e para, não fica em loop
+  if (Math.abs(luzAlvo - luzAtual) < .05) luzAtual = luzAlvo;
+  aplicarLuz(luzAtual);
+  luzRaf = luzAtual !== luzAlvo ? requestAnimationFrame(passoLuz) : 0;
+}
+
+/* ===== coreografia de entrada ===================================== */
+function entrada() {
+  const ws = [...document.querySelectorAll('.widget'), $('#demo')];
+  if (RM.matches) { ws.forEach(w => w.animate([{ opacity: 0 }, { opacity: 1 }], { duration: DUR.cruzar })); return; }
+  ws.forEach((w, i) => {
+    const d = 100 + i * DUR.escalonar;
+    // o próprio vidro anima (nunca um wrapper: opacidade no pai mataria o backdrop)
+    w.animate([{ opacity: 0, transform: 'translateY(18px) scale(.965)' }, { opacity: 1, transform: 'none' }],
+      { duration: M.liquida.dur, delay: d, easing: M.liquida.ease, fill: 'backwards' });
+    w.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, delay: d, easing: EASE_SAIDA, fill: 'backwards', composite: 'replace' });
+    const c = w.querySelector(':scope > .conteudo');
+    if (c) c.animate([{ opacity: 0, filter: 'blur(6px)', transform: 'translateY(6px)' }, { opacity: 1, filter: 'blur(0px)', transform: 'none' }],
+      { duration: 420, delay: d + 110, easing: EASE_SAIDA, fill: 'backwards' });
+  });
+  roloEntrada($('#rel-hora'), 260);
+  // anéis varrem do zero depois que o vidro deles chegou
+  document.querySelectorAll('.anel svg, .barra').forEach((el, i) => {
+    const alvo = el.style.getPropertyValue('--p');
+    el.style.transition = 'none'; el.style.setProperty('--p', 0); el.getBoundingClientRect();
+    el.style.transition = '';
+    // só devolve o alvo se nada renderizou nesse meio tempo (senão uma cena trocada logo após "Rever entrada" voltaria ao valor velho)
+    setTimeout(() => { if (el.style.getPropertyValue('--p').trim() === '0') el.style.setProperty('--p', alvo); }, 380 + i * 40);
+  });
+  [...$('#ag-lista').children].slice(0, 8).forEach((li, i) => li.animate(
+    [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+    { duration: 380, delay: 320 + i * 35, easing: EASE_SAIDA, fill: 'backwards' }));
+}
+
+/* ===== controles ================================================== */
+const hora = $('#hora');
+let ultInput = 0, fimArrasto = 0;
+hora.addEventListener('input', () => {
+  const agora = performance.now();
+  S.arrasto = agora - ultInput < 170; // arrasto contínuo: tudo troca seco, nada empilha
+  ultInput = agora;
+  if (S.arrasto) document.getAnimations().forEach(a => { if (a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('.mesa')) a.finish(); });
+  S.t = +hora.value;
+  renderTudo();
+  clearTimeout(fimArrasto);
+  fimArrasto = setTimeout(() => { S.arrasto = false; pedirLuz(); }, 200);
+});
+function pressionar(grupoSel, botao) {
+  document.querySelectorAll(grupoSel).forEach(b => b.setAttribute('aria-pressed', b === botao ? 'true' : 'false'));
+}
+document.querySelectorAll('button[data-cena]').forEach(b => b.addEventListener('click', () => {
+  S.cena = b.dataset.cena; pressionar('button[data-cena]', b); renderTudo();
+}));
+document.querySelectorAll('button[data-papel]').forEach(b => b.addEventListener('click', () => {
+  if (S.papel === b.dataset.papel) return;
+  pressionar('button[data-papel]', b); trocarPapel(b.dataset.papel);
+}));
+document.querySelectorAll('button[data-vidro]').forEach(b => b.addEventListener('click', () => {
+  S.vidro = b.dataset.vidro; pressionar('button[data-vidro]', b); raiz.dataset.vidro = S.vidro;
+  document.querySelectorAll('#lentes feGaussianBlur').forEach(g => g.setAttribute('stdDeviation', BLUR_LENTE[S.vidro]));
+  amostrar(); // o piso de legibilidade depende do nível de vidro
+}));
+$('#btn-privado').addEventListener('click', e => {
+  S.privado = !S.privado; e.currentTarget.setAttribute('aria-pressed', S.privado ? 'true' : 'false'); // rótulo fixo: o estado vai no aria-pressed
+  renderTudo();
+});
+$('#rever').addEventListener('click', entrada);
+
+/* ===== início ===================================================== */
+// atalhos de demonstração pela URL: ?t=905&cena=carga&papel=tarde&vidro=fosco&privado=1
+const q = new URLSearchParams(location.search);
+if (q.has('t')) { S.t = clamp(+q.get('t') || 877, 420, 1260); hora.value = S.t; }
+if (PAPEIS[q.get('papel')]) S.papel = q.get('papel');
+if (['normal', 'carga', 'velho', 'corp', 'limite'].includes(q.get('cena'))) S.cena = q.get('cena');
+if (['claro', 'padrao', 'fosco'].includes(q.get('vidro'))) { S.vidro = q.get('vidro'); raiz.dataset.vidro = S.vidro; }
+if (q.get('privado') === '1') { S.privado = true; $('#btn-privado').setAttribute('aria-pressed', 'true'); }
+pressionar('button[data-cena]', $(`button[data-cena="${S.cena}"]`));
+pressionar('button[data-papel]', $(`button[data-papel="${S.papel}"]`));
+pressionar('button[data-vidro]', $(`button[data-vidro="${S.vidro}"]`));
+montarMaquina();
+montarAnel($('#anel-claude'), { sufixo: '%' });
+renderTudo({ primeira: true, instante: true });
+trocarPapel(S.papel, true);
+montarLentes();
+aplicarLuz(S.t);
+entrada();
+setTimeout(preaquecerPapeis, 1800); // só depois da coreografia de entrada: a pintura não pode roubar quadro dela
+
+let tRes = 0;
+addEventListener('resize', () => { clearTimeout(tRes); tRes = setTimeout(() => {
+  const { W, H } = tamPapel();
+  if (cvAtivo.width === W && cvAtivo.height === H) { montarLentes(); amostrar(); aplicarLuz(luzAtual); return; } // barra do celular: não repinta
+  cachePapel.clear(); pintarPapel(cvAtivo, S.papel); preaquecerPapeis(); montarLentes(); amostrar(); aplicarLuz(luzAtual);
+}, 180); });
+// a lente é gerada no tamanho exato do widget: refaz quando o tamanho muda
+let tLente = 0;
+const ro = new ResizeObserver(() => { clearTimeout(tLente); tLente = setTimeout(() => { montarLentes(); amostrar(); }, 120); });
+document.querySelectorAll('.widget').forEach(w => ro.observe(w));
+let rolando = 0;
+addEventListener('scroll', () => { if (rolando) return; rolando = requestAnimationFrame(() => { rolando = 0; amostrar(); aplicarLuz(luzAtual); }); }, { passive: true });
+})();
+</script>
+</body>
+</html>

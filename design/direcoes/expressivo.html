@@ -1,0 +1,1143 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizonte Expressivo</title>
+<link rel="icon" href="data:,">
+<style>
+/* Horizonte, direção Expressivo. Protótipo: dados ilustrativos.
+   Cor dinâmica: cada papel de parede gera um esquema tonal (estilo Material You).
+   Forma = estado: o widget Dia muda de forma com o papel; o disco dos anéis vira
+   cookie (atenção) e sol (crítico). Movimento só em mudança de estado, nada em loop. */
+
+@property --s      {syntax:'<color>';inherits:true;initial-value:#15302D}
+@property --s-hi   {syntax:'<color>';inherits:true;initial-value:#1E3B37}
+@property --on     {syntax:'<color>';inherits:true;initial-value:#E2F1EC}
+@property --on-v   {syntax:'<color>';inherits:true;initial-value:#A6BFB9}
+@property --pri    {syntax:'<color>';inherits:true;initial-value:#86E0C8}
+@property --on-pri {syntax:'<color>';inherits:true;initial-value:#00211B}
+@property --sol    {syntax:'<color>';inherits:true;initial-value:#FFB27A}
+@property --on-sol {syntax:'<color>';inherits:true;initial-value:#2F1300}
+@property --sold   {syntax:'<color>';inherits:true;initial-value:#4A2E1C}
+@property --on-sold{syntax:'<color>';inherits:true;initial-value:#FFDCC6}
+@property --calm   {syntax:'<color>';inherits:true;initial-value:#0F4A40}
+@property --on-calm{syntax:'<color>';inherits:true;initial-value:#B4F3E2}
+@property --ag-pes {syntax:'<color>';inherits:true;initial-value:#FFA9C5}
+@property --ag-cor {syntax:'<color>';inherits:true;initial-value:#8ED0FF}
+@property --ag-fer {syntax:'<color>';inherits:true;initial-value:#EBCB6A}
+@property --ctl    {syntax:'<color>';inherits:true;initial-value:#0B201E}
+@property --on-ctl {syntax:'<color>';inherits:true;initial-value:#E3F0EB}
+@property --acc    {syntax:'<color>';inherits:true;initial-value:#86E0C8}
+@property --on-acc {syntax:'<color>';inherits:true;initial-value:#00211B}
+
+:root{
+  --f-disp:"Segoe UI Variable Display","Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+  --f-text:"Segoe UI Variable Text","Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+  --f-mono:"Cascadia Mono","Cascadia Code",ui-monospace,Consolas,monospace;
+  /* contrato do anel Claude e alertas de sistema: não mudam com o tema */
+  --ok:#30A46C; --warn:#F5A623; --bad:#E5484D; --stale:#747684;
+  /* curvas (as molas reais são geradas em JS e escritas como linear()) */
+  --e-eff:cubic-bezier(.2,0,0,1);
+  --e-exit:cubic-bezier(.4,0,1,1);
+  --sp-fast:cubic-bezier(.2,0,0,1); --sp-fast-d:300ms;
+  --sp-boing:cubic-bezier(.2,0,0,1); --sp-boing-d:500ms;
+  --sp-spatial:cubic-bezier(.2,0,0,1); --sp-spatial-d:400ms;
+  --sp-slow:cubic-bezier(.2,0,0,1); --sp-slow-d:700ms;
+}
+
+/* esquema escuro, semente petróleo, tirado do papel de parede Ardósia */
+body[data-wall="ardosia"]{
+  color-scheme:dark;
+  --s:#15302D; --s-hi:#1F3D39; --on:#E2F1EC; --on-v:#A6BFB9;
+  --pri:#86E0C8; --on-pri:#00211B;
+  --sol:#FFB27A; --on-sol:#2F1300;
+  --sold:#4A2E1C; --on-sold:#FFDCC6;
+  --calm:#0F4A40; --on-calm:#B4F3E2;
+  --ag-pes:#FFA9C5; --ag-cor:#8ED0FF; --ag-fer:#EBCB6A;
+  --ctl:#0A1E1C; --on-ctl:#E3F0EB; --acc:#86E0C8; --on-acc:#00211B;
+}
+/* esquema claro, semente lima, tirado do papel de parede Pistache */
+body[data-wall="pistache"]{
+  color-scheme:light;
+  --s:#F6FAEA; --s-hi:#E9F0D6; --on:#1A1F12; --on-v:#4B523F;
+  --pri:#2D5A12; --on-pri:#E4FFCB;
+  --sol:#FF8640; --on-sol:#2B0F00;
+  --sold:#FFDCC8; --on-sold:#5A2400;
+  --calm:#C5EE95; --on-calm:#142300;
+  --ag-pes:#B3155A; --ag-cor:#155FA0; --ag-fer:#8A6200;
+  --ctl:#1D2513; --on-ctl:#EEF5E2; --acc:#C5EE95; --on-acc:#142300;
+}
+
+*{box-sizing:border-box}
+html{overflow-x:clip}
+body{
+  margin:0; min-height:100vh; min-height:100dvh;
+  font-family:var(--f-text); font-size:15px; line-height:1.4;
+  color:var(--on); background:#0D2523;
+  -webkit-font-smoothing:antialiased;
+  transition:
+    --s .6s var(--e-eff), --s-hi .6s var(--e-eff), --on .6s var(--e-eff), --on-v .6s var(--e-eff),
+    --pri .6s var(--e-eff), --on-pri .6s var(--e-eff), --sol .6s var(--e-eff), --on-sol .6s var(--e-eff),
+    --sold .6s var(--e-eff), --on-sold .6s var(--e-eff), --calm .6s var(--e-eff), --on-calm .6s var(--e-eff),
+    --ag-pes .6s var(--e-eff), --ag-cor .6s var(--e-eff), --ag-fer .6s var(--e-eff),
+    --ctl .6s var(--e-eff), --on-ctl .6s var(--e-eff), --acc .6s var(--e-eff), --on-acc .6s var(--e-eff),
+    background-color .6s var(--e-eff);
+}
+body[data-wall="pistache"]{background:#DCE8C1}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2.5px solid currentColor;outline-offset:3px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+h2,h3,p{margin:0}
+
+/* ---------- papel de parede ---------- */
+.wall{position:fixed;inset:0;z-index:0;opacity:0;scale:1.05;
+  transition:opacity .7s var(--e-eff), scale var(--sp-slow-d) var(--sp-slow);pointer-events:none;
+  will-change:opacity,scale /* camada própria: a granulação (feTurbulence) não é refeita a cada quadro da troca */}
+.wall.on{opacity:1;scale:1}
+.wall svg{width:100%;height:100%;display:block}
+
+/* ---------- mesa ---------- */
+.desk{position:relative;z-index:1;display:grid;
+  grid-template-columns:430px 380px 330px;gap:20px;justify-content:center;align-items:start;
+  padding:40px 24px 160px}
+.col{display:flex;flex-direction:column;gap:20px;min-width:0}
+
+.w{position:relative;background:var(--s);color:var(--on);border-radius:32px;padding:24px;min-width:0}
+.w h2{font-family:var(--f-disp);font-size:15px;font-weight:650;color:var(--on-v);letter-spacing:.005em}
+
+/* ---------- relógio: estádio cheio na cor primária ---------- */
+.w-clock{background:var(--pri);color:var(--on-pri);border-radius:999px;
+  padding:26px clamp(32px,9vw,52px) 30px}
+.clk-time{font-family:var(--f-disp);font-weight:700;font-size:clamp(72px,23vw,112px);
+  line-height:1;letter-spacing:-.05em;display:flex;align-items:baseline;font-variant-numeric:tabular-nums}
+.clk-time .colon{opacity:.6;margin:0 .02em;translate:0 -.06em}
+.clk-foot{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:10px}
+.clk-date{font-family:var(--f-disp);font-size:18px;font-weight:600}
+.chip{font-size:13px;font-weight:600;padding:5px 12px;border-radius:10px;
+  background:color-mix(in oklab,var(--on-pri) 14%,transparent)}
+
+/* ---------- rolagem de dígitos ---------- */
+.roll{display:inline-flex;align-items:baseline;white-space:pre;font-variant-numeric:tabular-nums}
+.roll .slot{display:inline-block;height:1.1em;overflow:hidden;vertical-align:bottom;
+  -webkit-mask-image:linear-gradient(transparent,#000 12%,#000 88%,transparent);
+          mask-image:linear-gradient(transparent,#000 12%,#000 88%,transparent)}
+.roll .reel{display:block;will-change:transform}
+.roll .reel i{display:block;height:1.1em;line-height:1.1em;font-style:normal;text-align:center}
+.roll .sep{display:inline-block;line-height:1.1em}
+
+/* ---------- Dia: a superfície inteira muda de papel e de forma ---------- */
+.w-dia{--dbg:var(--s-hi);--don:var(--on);background:var(--dbg);color:var(--don);
+  padding:26px 28px 22px;border-radius:32px;
+  transition:background-color .45s var(--e-eff),color .45s var(--e-eff)}
+.w-dia[data-role="urgente"]{--dbg:var(--sold);--don:var(--on-sold)}
+.w-dia[data-role="agora"]{--dbg:var(--sol);--don:var(--on-sol)}
+.w-dia[data-role="livre"]{--dbg:var(--calm);--don:var(--on-calm)}
+.stage{display:grid;min-height:144px}
+.face{grid-area:1/1;align-self:start;min-width:0}
+.face.out{opacity:0;translate:0 -8px;filter:blur(4px);
+  transition:opacity .17s var(--e-exit),translate .17s var(--e-exit),filter .17s var(--e-exit)}
+.kick{font-family:var(--f-disp);font-size:16px;font-weight:600;line-height:44px;height:44px;
+  display:flex;align-items:center;gap:.3em;opacity:.86;padding-right:128px;white-space:nowrap}
+.ttl{font-family:var(--f-disp);font-size:clamp(26px,7.4vw,32px);font-weight:700;line-height:1.08;
+  letter-spacing:-.02em;margin-top:2px;overflow-wrap:anywhere}
+.meta{margin-top:10px;font-size:14px;opacity:.82}
+.meta svg{width:15px;height:15px;vertical-align:-2px;margin-left:.3em}
+.wave{height:20px;margin-top:14px}
+.wave svg{display:block;width:100%;height:20px;overflow:visible}
+
+.vbtn{position:absolute;top:26px;right:24px;width:120px;height:44px;border:0;padding:0;
+  border-radius:22px;display:flex;align-items:center;justify-content:flex-end;
+  background:color-mix(in oklab,var(--don) 14%,transparent);color:var(--don);
+  clip-path:inset(0 0 0 76px round 22px);
+  transition:clip-path var(--sp-boing-d) var(--sp-boing),background-color .3s var(--e-eff),
+    color .3s var(--e-eff),opacity .2s var(--e-eff),scale var(--sp-boing-d) var(--sp-boing);
+  transform-origin:right center}
+.vbtn .vl{font-weight:650;font-size:15px;margin-right:auto;padding-left:20px;opacity:0;
+  transition:opacity .2s var(--e-eff)}
+.vbtn .vi{width:44px;height:44px;display:grid;place-items:center;flex:none}
+.vbtn .vi svg{width:20px;height:20px}
+.vbtn[data-s="lit"]{clip-path:inset(0 0 0 0 round 22px);background:var(--don);color:var(--dbg)}
+.vbtn[data-s="lit"] .vl{opacity:1;transition-delay:.06s}
+.vbtn[data-s="off"]{opacity:0;scale:.6;pointer-events:none}
+.vbtn:active{scale:.95}
+.vbtn:focus-visible{outline-color:var(--don)}
+
+.tl{margin-top:16px}
+.tl svg{display:block;width:100%;height:60px;overflow:visible}
+.tl-track{stroke:currentColor;stroke-opacity:.2;stroke-width:4;stroke-linecap:round}
+.tl-blk{fill:currentColor;transform-box:fill-box;transform-origin:center;
+  transition:opacity .35s var(--e-eff),transform var(--sp-boing-d) var(--sp-boing)}
+.tl-blk.past{opacity:.3}.tl-blk.fut{opacity:.62}.tl-blk.now{opacity:1}
+.tl-blk.gone{opacity:0;transform:scaleY(0)}
+.tl-h{fill:currentColor;fill-opacity:.78;font-family:var(--f-mono);font-size:10.5px}
+.tl-needle rect{fill:currentColor}
+.tl-rec{color:inherit;opacity:.8}
+
+/* ---------- Agenda ---------- */
+.w-agenda{padding:22px 16px 18px}
+.ag-head{display:flex;align-items:center;gap:10px;padding:0 8px 6px}
+.ag-head h2{margin-right:auto}
+.health{display:flex;gap:6px;align-items:center}
+.health i{width:8px;height:8px;border-radius:50%;background:var(--ok);display:block;
+  transition:background-color .3s var(--e-eff),scale var(--sp-boing-d) var(--sp-boing)}
+.health i.fail{background:var(--bad);scale:1.35}
+.lock{width:40px;height:40px;border:0;border-radius:20px;display:grid;place-items:center;
+  background:color-mix(in oklab,var(--on) 8%,transparent);color:var(--on-v);
+  transition:border-radius var(--sp-boing-d) var(--sp-boing),background-color .25s var(--e-eff),
+    color .25s var(--e-eff),scale .2s var(--e-eff)}
+.lock svg{width:18px;height:18px}
+.lock .shackle{transition:translate var(--sp-boing-d) var(--sp-boing)}
+.lock[aria-pressed="true"]{border-radius:12px;background:var(--on);color:var(--s)}
+.lock[aria-pressed="false"] .shackle{translate:3px -2px}
+.lock:active{border-radius:10px;scale:.94}
+.lock:focus-visible{outline-color:var(--on)}
+.ag-list{position:relative}
+.ag-g{font-family:var(--f-disp);font-size:13px;font-weight:650;color:var(--on-v);padding:14px 8px 4px}
+.row{display:grid;grid-template-columns:64px 10px minmax(0,1fr) auto;align-items:center;gap:10px;
+  min-height:38px;padding:6px 8px;border-radius:12px;position:relative;
+  transition:border-radius var(--sp-fast-d) var(--sp-fast)}
+.row.ev::before{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:color-mix(in oklab,var(--on) 7%,transparent);opacity:0;transition:opacity .12s var(--e-eff)}
+@media (hover:hover) and (pointer:fine){.row.ev:hover{border-radius:19px}.row.ev:hover::before{opacity:1}}
+.row.ev:focus-visible::before{opacity:1}
+.row > *{position:relative}
+.tm{font-family:var(--f-mono);font-size:13px;color:var(--on-v);font-variant-numeric:tabular-nums}
+.tm.now{justify-self:start;font-family:var(--f-text);font-weight:700;font-size:12px;
+  background:var(--sol);color:var(--on-sol);padding:3px 9px;border-radius:999px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.tt{font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ic{color:var(--on-v);display:flex}
+.ic svg{width:15px;height:15px}
+.row.gap{color:var(--on-v);font-size:13.5px;min-height:30px}
+.gap-line{grid-column:1/3;height:0;border-top:2px dotted color-mix(in oklab,var(--on-v) 55%,transparent);margin-right:4px}
+.gap-t{grid-column:3/5}
+.more{padding:12px 8px 0;font-size:13.5px;color:var(--on-v)}
+.err{margin:6px 0 4px;padding:12px 14px;border-radius:16px;font-size:13.5px;line-height:1.4;
+  background:color-mix(in oklab,var(--bad) 16%,var(--s));display:grid;grid-template-columns:10px 1fr;gap:10px}
+.err::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--bad);margin-top:5px}
+.err b{font-weight:650}
+
+/* ---------- anéis ---------- */
+.ring{position:relative;width:var(--sz);height:var(--sz);color:var(--on-v);flex:none;
+  transition:color .4s var(--e-eff)}
+.ring-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.ring-disc{fill:currentColor;fill-opacity:.15}
+.ring-trk{fill:none;stroke:currentColor;stroke-opacity:.24;stroke-linecap:round}
+.ring-ind{fill:none;stroke:currentColor;stroke-linecap:round}
+.ring-dot{fill:currentColor;transform-box:fill-box;transform-origin:center;transform:scale(0)}
+.ring-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:var(--on);font-family:var(--f-disp);line-height:1}
+.ring-n{font-weight:700;letter-spacing:-.03em;display:inline-flex;align-items:baseline}
+.ring-u{font-size:.42em;font-weight:650;margin-left:.06em;opacity:.7}
+.ring-cap{font-family:var(--f-text);font-size:11.5px;font-weight:600;color:var(--on-v);height:0;overflow:visible;
+  translate:0 4px;white-space:nowrap}
+
+/* ---------- barras (mesma gramática: ponta redonda, folga de 4 px, ponto de parada) ---------- */
+.bar{position:relative;height:8px;color:var(--on);transition:color .4s var(--e-eff)}
+.bar i{position:absolute;inset:0;border-radius:99px;background:currentColor}
+.bar .trk{opacity:.2}
+.bar .stop{left:auto;width:4px;height:4px;top:2px;right:2px;opacity:.9}
+
+/* ---------- Claude ---------- */
+.cl-body{display:flex;align-items:center;gap:20px;margin-top:14px}
+.cl-big .ring-n{font-size:40px}
+.cl-side{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
+.cl-acc{font-family:var(--f-disp);font-weight:650;font-size:15px}
+.cl-acc small{font-family:var(--f-text);font-weight:500;font-size:12.5px;color:var(--on-v);margin-left:4px}
+.mini{display:grid;grid-template-columns:22px 1fr 34px;align-items:center;gap:8px;font-size:12.5px;color:var(--on-v)}
+.mini .mono{text-align:right;color:var(--on)}
+.cl-leg{margin-top:16px;font-size:13.5px;color:var(--on-v);text-wrap:balance}
+.cl-leg b{color:var(--on);font-weight:600}
+
+/* ---------- Máquina ---------- */
+.gauges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:14px}
+.g{margin:0;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.g .ring-n{font-size:20px}
+.g figcaption{text-align:center;font-size:12.5px;line-height:1.25;font-weight:600}
+.g figcaption small{display:block;font-weight:500;color:var(--on-v);font-size:11.5px}
+.drives{display:flex;flex-direction:column;gap:12px;margin-top:18px}
+.drives .bar{color:var(--on-v)}
+.drv-l{display:flex;justify-content:space-between;gap:8px;font-size:13px;margin-bottom:6px}
+.drv-l span:last-child{color:var(--on-v)}
+
+/* ---------- controles de demonstração ---------- */
+.demo{position:fixed;z-index:5;left:50%;bottom:16px;translate:-50% 0;width:min(1180px,calc(100% - 32px));
+  background:var(--ctl);color:var(--on-ctl);border-radius:28px;padding:12px 16px 12px 22px;
+  display:flex;flex-direction:column;gap:10px}
+.demo-row{display:flex;align-items:center;gap:16px;min-width:0}
+.demo-name{font-size:12.5px;opacity:.7;white-space:nowrap}
+.tm-lab{font-size:13px;white-space:nowrap;display:flex;align-items:baseline;gap:8px}
+.tm-lab output{font-family:var(--f-mono);font-size:15px;font-weight:600;min-width:5ch}
+.demo-btns{overflow-x:auto;scrollbar-width:none;padding:2px}
+.demo-btns::-webkit-scrollbar{display:none}
+.seg{display:flex;gap:6px;flex:none}
+.seg + .seg{padding-left:14px;border-left:1px solid color-mix(in oklab,var(--on-ctl) 18%,transparent)}
+.sbtn{height:36px;padding:0 14px;border-radius:18px;border:0;white-space:nowrap;font-size:13.5px;font-weight:550;
+  background:color-mix(in oklab,var(--on-ctl) 10%,transparent);color:var(--on-ctl);
+  transition:border-radius var(--sp-boing-d) var(--sp-boing),background-color .2s var(--e-eff),
+    color .2s var(--e-eff),scale .16s var(--e-eff)}
+@media (hover:hover) and (pointer:fine){.sbtn:hover{background:color-mix(in oklab,var(--on-ctl) 18%,transparent)}}
+.sbtn[aria-pressed="true"]{border-radius:12px;background:var(--acc);color:var(--on-acc)}
+.sbtn:active{border-radius:9px;scale:.96}
+.sbtn.ghost{background:none;opacity:.8}
+.sbtn:focus-visible{outline-color:var(--on-ctl)}
+
+/* slider no gesto do M3 Expressive: trilho grosso, alça em barra com folga */
+input[type=range]{--pct:50%;flex:1;min-width:120px;height:36px;margin:0;background:none;-webkit-appearance:none;appearance:none;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:16px;border-radius:8px;
+  background:linear-gradient(to right,var(--acc) 0 calc(var(--pct) - 6px),transparent calc(var(--pct) - 6px) calc(var(--pct) + 6px),
+  color-mix(in oklab,var(--on-ctl) 16%,transparent) calc(var(--pct) + 6px))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:4px;height:36px;margin-top:-10px;border-radius:2px;
+  background:var(--acc);transition:width .15s var(--e-eff)}
+input[type=range]:active::-webkit-slider-thumb{width:2px}
+input[type=range]::-moz-range-track{height:16px;border-radius:8px;background:color-mix(in oklab,var(--on-ctl) 16%,transparent)}
+input[type=range]::-moz-range-progress{height:16px;border-radius:8px;background:var(--acc)}
+input[type=range]::-moz-range-thumb{width:4px;height:36px;border:0;border-radius:2px;background:var(--acc)}
+input[type=range]:focus-visible{outline-offset:2px;border-radius:10px}
+
+/* ---------- responsivo ---------- */
+@media (max-width:1239px){
+  .desk{grid-template-columns:repeat(2,minmax(0,420px))}
+}
+@media (max-width:760px){
+  .desk{grid-template-columns:minmax(0,1fr);padding:16px 16px 190px;gap:16px}
+  .col{gap:16px}
+  .col3{order:2}.col2{order:3}
+  .demo{bottom:8px;padding:10px 12px 10px 16px;border-radius:24px}
+  .demo-name{display:none}
+  .w{border-radius:28px}
+  .w-dia{padding:22px 22px 20px}
+  .kick{padding-right:120px}
+  .vbtn{right:18px;top:22px}
+  .cl-body{gap:14px}
+}
+
+/* ---------- movimento reduzido: sem movimento espacial, só troca curta de cor/opacidade ---------- */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.12s!important;animation:none!important}
+  .wall{scale:1!important}
+  .face.out{translate:none;filter:none}
+}
+</style>
+</head>
+<body data-wall="ardosia">
+
+<div class="wall on" id="wall-ardosia" aria-hidden="true"></div>
+<div class="wall" id="wall-pistache" aria-hidden="true"></div>
+
+<main class="desk">
+  <div class="col col1">
+    <section class="w w-clock" aria-label="Relógio">
+      <div class="clk-time"><span class="roll" id="clkH"></span><span class="colon" aria-hidden="true">:</span><span class="roll" id="clkM"></span></div>
+      <div class="clk-foot">
+        <span class="clk-date">sexta, 2 de outubro</span>
+        <span class="chip">feriado seg 12/10</span>
+      </div>
+    </section>
+
+    <section class="w w-dia" id="dia" data-role="proximo" aria-label="Dia">
+      <div class="stage" id="stage"></div>
+      <button class="vbtn" id="vbtn" data-s="dim" type="button" aria-label="Entrar na videochamada">
+        <span class="vl">Entrar</span>
+        <span class="vi"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="2.5" y="5.5" width="10.5" height="9" rx="2.5"/><path d="M13 9l4.5-2.6v7.2L13 11z"/></svg></span>
+      </button>
+      <div class="tl"><svg id="tl" role="img" aria-label="Linha do dia, das 7 às 21 horas"></svg></div>
+    </section>
+  </div>
+
+  <div class="col col2">
+    <section class="w w-agenda" aria-label="Agenda">
+      <header class="ag-head">
+        <h2>Próximos 14 dias</h2>
+        <div class="health" id="health">
+          <i data-src="pes" role="img" aria-label="Agenda pessoal sincronizada" title="pessoal: sincronizada"></i>
+          <i data-src="cor" role="img" aria-label="Agenda corporativa sincronizada" title="corporativo: sincronizada"></i>
+          <i data-src="fer" role="img" aria-label="Feriados sincronizados" title="feriados: sincronizada"></i>
+        </div>
+        <button class="lock" id="lock" type="button" aria-pressed="false" aria-label="Modo privado">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path class="shackle" d="M6.5 9V6.5a3.5 3.5 0 0 1 7 0V9"/><rect x="4" y="9" width="12" height="8.5" rx="2.5"/></svg>
+        </button>
+      </header>
+      <div class="ag-list" id="agList"></div>
+    </section>
+  </div>
+
+  <div class="col col3">
+    <section class="w w-claude" aria-label="Claude">
+      <h2>Claude</h2>
+      <div class="cl-body">
+        <div class="ring cl-big" id="clRing" style="--sz:136px">
+          <div class="ring-c"><span class="ring-n"><span class="roll" id="clN"></span><span class="ring-u">%</span></span><span class="ring-cap" id="clCap"></span></div>
+        </div>
+        <div class="cl-side">
+          <p class="cl-acc">conta 6<small>inativa</small></p>
+          <div class="mini"><span>5h</span><div class="bar" id="c6a"></div><span class="mono" id="c6aT">18%</span></div>
+          <div class="mini"><span>7d</span><div class="bar" id="c6b"></div><span class="mono" id="c6bT">90%</span></div>
+        </div>
+      </div>
+      <p class="cl-leg" id="clLeg"></p>
+    </section>
+
+    <section class="w w-maq" aria-label="Máquina">
+      <h2>Máquina</h2>
+      <div class="gauges">
+        <figure class="g"><div class="ring" id="gCpu" style="--sz:68px"><div class="ring-c"><span class="ring-n"><span class="roll" id="nCpu"></span><span class="ring-u">%</span></span></div></div><figcaption>CPU</figcaption></figure>
+        <figure class="g"><div class="ring" id="gRam" style="--sz:68px"><div class="ring-c"><span class="ring-n"><span class="roll" id="nRam"></span><span class="ring-u">%</span></span></div></div><figcaption>RAM<small id="ramG">9,3G</small></figcaption></figure>
+        <figure class="g"><div class="ring" id="gGpu" style="--sz:68px"><div class="ring-c"><span class="ring-n"><span class="roll" id="nGpu"></span><span class="ring-u">%</span></span></div></div><figcaption>GPU</figcaption></figure>
+        <figure class="g"><div class="ring" id="gC" style="--sz:68px"><div class="ring-c"><span class="ring-n"><span class="roll" id="nC"></span><span class="ring-u">GB</span></span></div></div><figcaption>C:<small>livres</small></figcaption></figure>
+      </div>
+      <div class="drives">
+        <div><div class="drv-l"><span>drive G</span><span>26 de 100 GB livres</span></div><div class="bar" id="dG"></div></div>
+        <div><div class="drv-l"><span>drive I</span><span>11 de 15 GB livres</span></div><div class="bar" id="dI"></div></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<aside class="demo" id="demo" aria-label="Controles de demonstração">
+  <div class="demo-row">
+    <span class="demo-name">Horizonte, direção expressiva</span>
+    <label class="tm-lab" for="tm">Horário <output id="tmOut" for="tm">14:37</output></label>
+    <input type="range" id="tm" min="420" max="1260" step="1" value="877" aria-label="Horário simulado">
+  </div>
+  <div class="demo-row demo-btns">
+    <div class="seg" role="group" aria-label="Cenas" id="scenes">
+      <button class="sbtn" type="button" data-scene="normal" aria-pressed="true">Dia normal</button>
+      <button class="sbtn" type="button" data-scene="carga" aria-pressed="false">PC sob carga</button>
+      <button class="sbtn" type="button" data-scene="velho" aria-pressed="false">Bandeja sem medição nova</button>
+      <button class="sbtn" type="button" data-scene="corp" aria-pressed="false">Agenda corporativa falhando</button>
+      <button class="sbtn" type="button" data-scene="limite" aria-pressed="false">Claude no limite</button>
+    </div>
+    <div class="seg" role="group" aria-label="Papel de parede" id="walls">
+      <button class="sbtn" type="button" data-wall="ardosia" aria-pressed="true">Ardósia</button>
+      <button class="sbtn" type="button" data-wall="pistache" aria-pressed="false">Pistache</button>
+    </div>
+    <div class="seg"><button class="sbtn ghost" type="button" id="replay">Repetir entrada</button></div>
+  </div>
+</aside>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const mk = (tag, attrs = {}, parent) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+
+/* ================= movimento reduzido ================= */
+const RM = matchMedia('(prefers-reduced-motion: reduce)');
+let reduce = RM.matches;
+if (RM.addEventListener) RM.addEventListener('change', e => {
+  reduce = e.matches;
+  if (reduce) for (const s of [...active]) s.snap(s.t); /* ligou no meio do movimento: tudo assenta já */
+});
+
+/* ================= motor de molas =================
+   Tokens no espírito do M3 Expressive (rigidez k, razão de amortecimento z):
+   fast 800/0,6 (dígitos, pequenos), spatial 380/0,8 (posição), slow 200/0,8 (papel de parede),
+   boing 520/0,45 (forma: raio, disco, chip), effect 1600/1 (cor/opacidade),
+   data 260/1 (valor do anel e das barras: dado não pode quicar). */
+const CFG = {
+  fast:   {k: 800,  z: .6},
+  spatial:{k: 380,  z: .8},
+  slow:   {k: 200,  z: .8},
+  boing:  {k: 520,  z: .45},
+  shape:  {k: 420,  z: .55},
+  enter:  {k: 240,  z: .68},
+  row:    {k: 420,  z: .72},
+  needle: {k: 420,  z: .62},
+  effect: {k: 1600, z: 1},
+  data:   {k: 260,  z: 1},
+};
+const active = new Set();
+let raf = 0, last = 0;
+class Spring {
+  constructor(v, cfg, cb, eps = 1e-3) { this.x = v; this.v = 0; this.t = v; this.cfg = cfg; this.cb = cb; this.eps = eps; }
+  to(t, cfg) {
+    if (cfg) this.cfg = cfg;
+    this.t = t;
+    if (reduce) { this.snap(t); return this; }
+    active.add(this); kick(); return this;
+  }
+  from(x, t) { this.x = x; this.v = 0; this.cb(x, 0); return this.to(t); }
+  snap(v) { this.x = this.t = v; this.v = 0; active.delete(this); this.cb(v, 0); return this; }
+  step(h) {
+    const {k, z} = this.cfg, c = 2 * z * Math.sqrt(k);
+    const a = -k * (this.x - this.t) - c * this.v;
+    this.v += a * h; this.x += this.v * h;
+  }
+}
+function kick() { if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); } }
+function loop(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  const n = Math.max(1, Math.ceil(dt * 240)), h = dt / n;
+  for (const s of active) {
+    for (let i = 0; i < n; i++) s.step(h);
+    const scale = Math.max(1, Math.abs(s.t));
+    if (Math.abs(s.x - s.t) < s.eps * scale && Math.abs(s.v) < s.eps * 20 * scale) {
+      s.x = s.t; s.v = 0; active.delete(s);
+    }
+    s.cb(s.x, s.v);
+  }
+  raf = active.size ? requestAnimationFrame(loop) : 0;
+}
+/* a mesma física vira curva CSS linear() para transições declarativas */
+function springCSS({k, z}) {
+  let x = 0, v = 0, t = 0; const h = 1 / 1000, c = 2 * z * Math.sqrt(k), xs = [];
+  while (t < 2.5) {
+    for (let i = 0; i < 4; i++) { const a = -k * (x - 1) - c * v; v += a * h; x += v * h; t += h; }
+    xs.push(x);
+    if (Math.abs(1 - x) < .001 && Math.abs(v) < .02 && t > .05) break;
+  }
+  const N = 48, pts = [];
+  for (let i = 0; i <= N; i++) pts.push(xs[Math.round(i / N * (xs.length - 1))].toFixed(4));
+  pts[N] = '1';
+  return {curve: `linear(0, ${pts.slice(1).join(', ')})`, dur: Math.round(t * 1000)};
+}
+{
+  const root = document.documentElement.style;
+  for (const [name, cfg] of [['fast', CFG.fast], ['boing', CFG.boing], ['spatial', CFG.spatial], ['slow', CFG.slow]]) {
+    const s = springCSS(cfg);
+    /* navegador sem linear(): mantém o cubic-bezier do CSS (var inválida zeraria todas as transições) */
+    if (!(window.CSS && CSS.supports && CSS.supports('transition-timing-function', s.curve))) continue;
+    root.setProperty(`--sp-${name}`, s.curve);
+    root.setProperty(`--sp-${name}-d`, s.dur + 'ms');
+  }
+}
+
+/* ================= formas ================= */
+/* forma polar: amplitude 0 = círculo; ~0,05 = cookie; ~0,1 = sol (formas do M3 Expressive) */
+function blob(cx, cy, R, n, a, rot = 0, N = 120) {
+  let d = '';
+  for (let i = 0; i <= N; i++) {
+    const th = i / N * Math.PI * 2, r = R * (1 + a * Math.cos(n * (th - rot)));
+    d += (i ? 'L' : 'M') + (cx + r * Math.sin(th)).toFixed(2) + ' ' + (cy - r * Math.cos(th)).toFixed(2);
+  }
+  return d + 'Z';
+}
+const ICON_REP = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.6 7.4A5.4 5.4 0 0 1 12.2 4.3l1.3 1.3"/><path d="M13.5 2.2v3.4h-3.4"/><path d="M13.4 8.6A5.4 5.4 0 0 1 3.8 11.7l-1.3-1.3"/><path d="M2.5 13.8v-3.4h3.4"/></svg>';
+
+/* ================= papéis de parede (gerados, sem imagem externa) ================= */
+const WALLS = {
+  ardosia: {bg: '#0D2523', grain: .10, shapes: [
+    {t: 'blob', cx: 160, cy: 110, R: 450, n: 9, a: .06, fill: '#13403C'},
+    {t: 'pill', x: 640, y: 600, w: 1250, h: 400, rot: -24, fill: '#1A4D47'},
+    {t: 'circle', cx: 1410, cy: 60, R: 220, fill: '#25615A'},
+    {t: 'blob', cx: 110, cy: 860, R: 240, n: 12, a: .07, fill: '#E38A4F'},
+  ]},
+  pistache: {bg: '#DCE8C1', grain: .14, shapes: [
+    {t: 'blob', cx: 160, cy: 110, R: 450, n: 9, a: .06, fill: '#C3DD8C'},
+    {t: 'pill', x: 640, y: 600, w: 1250, h: 400, rot: -24, fill: '#F3B2CB'},
+    {t: 'circle', cx: 1410, cy: 60, R: 220, fill: '#9DC4E4'},
+    {t: 'blob', cx: 110, cy: 860, R: 240, n: 12, a: .07, fill: '#FF7B3A'},
+  ]},
+};
+for (const [id, w] of Object.entries(WALLS)) {
+  const host = $('#wall-' + id);
+  const svg = mk('svg', {viewBox: '0 0 1440 900', preserveAspectRatio: 'xMidYMid slice'}, host);
+  const defs = mk('defs', {}, svg);
+  const f = mk('filter', {id: 'grain-' + id, x: 0, y: 0, width: '100%', height: '100%'}, defs);
+  mk('feTurbulence', {type: 'fractalNoise', baseFrequency: '.85', numOctaves: 2, stitchTiles: 'stitch'}, f);
+  mk('feColorMatrix', {type: 'saturate', values: 0}, f);
+  mk('rect', {width: 1440, height: 900, fill: w.bg}, svg);
+  for (const s of w.shapes) {
+    if (s.t === 'blob') mk('path', {d: blob(s.cx, s.cy, s.R, s.n, s.a), fill: s.fill}, svg);
+    if (s.t === 'circle') mk('circle', {cx: s.cx, cy: s.cy, r: s.R, fill: s.fill}, svg);
+    if (s.t === 'pill') mk('rect', {x: s.x, y: s.y, width: s.w, height: s.h, rx: s.h / 2, fill: s.fill,
+      transform: `rotate(${s.rot} ${s.x + s.w / 2} ${s.y + s.h / 2})`}, svg);
+  }
+  mk('rect', {width: 1440, height: 900, filter: `url(#grain-${id})`, opacity: w.grain, style: 'mix-blend-mode:soft-light'}, svg);
+}
+
+/* ================= dígitos que rolam ================= */
+class Roller {
+  constructor(el, cfg = CFG.fast) { this.el = el; this.cfg = cfg; this.sig = null; this.slots = []; this.str = null; }
+  set(str, instant = false) {
+    if (str === this.str) return;
+    this.str = str;
+    if (!this.sr) { this.sr = document.createElement('span'); this.sr.className = 'sr'; }
+    this.sr.textContent = str;
+    const chars = [...str], sig = chars.map(c => /\d/.test(c) ? '#' : c).join('');
+    if (sig !== this.sig) { this.build(chars, sig, instant); return; }
+    let k = 0;
+    for (const c of chars) if (/\d/.test(c)) {
+      const sp = this.slots[k++];
+      instant ? sp.snap(+c) : sp.to(+c, this.cfg);
+    }
+  }
+  build(chars, sig, instant) {
+    const prev = this.slots.map(s => s.x);
+    for (const s of this.slots) active.delete(s); /* colunas antigas saem do DOM: param de animar */
+    const nd = chars.filter(c => /\d/.test(c)).length;
+    this.el.textContent = ''; this.sig = sig; this.slots = [];
+    this.el.appendChild(this.sr);
+    let k = 0;
+    for (const c of chars) {
+      if (/\d/.test(c)) {
+        const slot = document.createElement('span'); slot.className = 'slot'; slot.setAttribute('aria-hidden', 'true');
+        const col = document.createElement('span'); col.className = 'reel';
+        col.innerHTML = '<i>0</i><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i>6</i><i>7</i><i>8</i><i>9</i>';
+        slot.appendChild(col); this.el.appendChild(slot);
+        const pi = prev.length - (nd - k);
+        const start = (!instant && pi >= 0) ? prev[pi] : (instant ? +c : 0);
+        const sp = new Spring(start, this.cfg, (x, v) => {
+          col.style.transform = `translateY(${(-x * 1.1).toFixed(4)}em)`;
+          const b = Math.min(1.6, Math.abs(v) * .045);
+          col.style.filter = b > .15 ? `blur(${b.toFixed(2)}px)` : '';
+        }, .002);
+        sp.cb(start, 0);
+        instant ? sp.snap(+c) : sp.to(+c);
+        this.slots.push(sp); k++;
+      } else {
+        const s = document.createElement('span'); s.className = 'sep'; s.setAttribute('aria-hidden', 'true'); s.textContent = c;
+        this.el.appendChild(s);
+      }
+    }
+  }
+}
+
+/* ================= anel (M3: ponta redonda, folga de 4 px entre indicador e trilho) ================= */
+class Ring {
+  constructor(host, {px, sw = 9, dot = false}) {
+    this.host = host; const c = 64, r = 50;
+    const svg = mk('svg', {viewBox: '0 0 128 128', class: 'ring-svg', 'aria-hidden': 'true'});
+    host.prepend(svg);
+    const rot = `rotate(-90 ${c} ${c})`;
+    this.disc = mk('path', {class: 'ring-disc'}, svg);
+    this.trk = mk('circle', {class: 'ring-trk', cx: c, cy: c, r, pathLength: 100, transform: rot, 'stroke-width': sw}, svg);
+    this.ind = mk('circle', {class: 'ring-ind', cx: c, cy: c, r, pathLength: 100, transform: rot, 'stroke-width': sw}, svg);
+    if (dot) this.dot = mk('circle', {class: 'ring-dot', cx: c, cy: c - r - sw / 2 - 5, r: 3.6}, svg);
+    this.gapU = (sw + 4 * 128 / px) / (2 * Math.PI * r) * 100;
+    this.R = r - sw / 2 - 7; this.state = null;
+    const draw = () => this.draw();
+    this.fS = new Spring(0, CFG.data, draw, .0005);
+    this.aS = new Spring(0, CFG.boing, draw, .0005);
+    this.rS = new Spring(0, CFG.spatial, draw, .005);
+    this.dS = new Spring(0, CFG.boing, x => { if (this.dot) this.dot.style.transform = `scale(${Math.max(0, x).toFixed(3)})`; }, .002);
+    this.draw();
+  }
+  set({f, color = '', amp = 0, zoom = false, state = 0}, instant = false) {
+    f = Math.max(0, Math.min(1, f));
+    this.host.style.color = color;
+    if (instant) { this.fS.snap(f); this.aS.snap(amp); this.dS.snap(zoom ? 1 : 0); }
+    else {
+      this.fS.to(f); this.aS.to(amp); this.dS.to(zoom ? 1 : 0);
+      if (this.state !== null && state !== this.state) this.rS.to(this.rS.t + (state > this.state ? 18 : -18));
+    }
+    this.state = state;
+  }
+  draw() {
+    const f = Math.max(0, Math.min(1, this.fS.x)), L = f * 100, empty = f < .004;
+    this.ind.setAttribute('stroke-dasharray', `${L.toFixed(3)} 200`);
+    this.ind.style.opacity = empty ? 0 : 1;
+    const g = empty ? 0 : this.gapU, len = 100 - L - 2 * g;
+    if (len > .3) {
+      this.trk.style.opacity = '';
+      this.trk.setAttribute('stroke-dasharray', `${len.toFixed(3)} 200`);
+      this.trk.setAttribute('stroke-dashoffset', (-(L + g)).toFixed(3));
+    } else this.trk.style.opacity = 0;
+    this.disc.setAttribute('d', blob(64, 64, this.R, 10, Math.max(-.02, this.aS.x), this.rS.x * Math.PI / 180, 100));
+  }
+}
+
+/* ================= barra linear (mesma gramática do anel) ================= */
+class Bar {
+  constructor(el) {
+    el.innerHTML = '<i class="trk"></i><i class="ind"></i><i class="stop"></i>';
+    this.el = el; this.ind = el.querySelector('.ind'); this.trk = el.querySelector('.trk');
+    this.fS = new Spring(0, CFG.data, x => this.draw(x), .0005);
+    this.draw(0);
+  }
+  set(f, color = '', instant = false) { this.el.style.color = color; instant ? this.fS.snap(f) : this.fS.to(f); }
+  draw(x) {
+    const f = Math.max(0, Math.min(1, x)), p = f * 100;
+    this.ind.style.opacity = f < .004 ? 0 : 1;
+    this.ind.style.clipPath = `inset(0 ${(100 - p).toFixed(2)}% 0 0 round 99px)`;
+    this.trk.style.clipPath = f < .004 ? 'none' : `inset(0 0 0 calc(${p.toFixed(2)}% + 4px) round 99px)`;
+  }
+}
+
+/* ================= progresso ondulado do AGORA (onda estática; amplitude entra por mola) ================= */
+class Wave {
+  constructor(host) {
+    this.host = host; this.W = host.clientWidth || 300;
+    this.svg = mk('svg', {'aria-hidden': 'true'}, host);
+    this.trk = mk('path', {fill: 'none', stroke: 'currentColor', 'stroke-opacity': .28, 'stroke-width': 5, 'stroke-linecap': 'round'}, this.svg);
+    this.ind = mk('path', {fill: 'none', stroke: 'currentColor', 'stroke-width': 5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round'}, this.svg);
+    this.stop = mk('circle', {r: 2.2, fill: 'currentColor'}, this.svg);
+    const draw = () => this.draw();
+    this.fS = new Spring(0, CFG.data, draw, .0005);
+    this.aS = new Spring(0, CFG.boing, draw, .002);
+    this.ro = new ResizeObserver(() => { this.W = host.clientWidth || this.W; this.draw(); });
+    this.ro.observe(host);
+  }
+  set(f, instant) { instant ? this.fS.snap(f) : this.fS.to(f); }
+  grow(instant) { instant ? this.aS.snap(3) : setTimeout(() => this.aS.to(3), 90); }
+  draw() {
+    const W = this.W, y = 10, sw = 5, f = Math.max(0, Math.min(1, this.fS.x)), A = this.aS.x, lam = 22;
+    this.svg.setAttribute('viewBox', `0 0 ${W} 20`);
+    const x0 = sw / 2, x1 = x0 + f * (W - sw);
+    let d = `M${x0} ${y}`;
+    for (let x = x0 + 2; x < x1; x += 2) d += `L${x.toFixed(1)} ${(y + A * Math.sin((x - x0) / lam * Math.PI * 2)).toFixed(2)}`;
+    d += `L${x1.toFixed(1)} ${(y + A * Math.sin((x1 - x0) / lam * Math.PI * 2)).toFixed(2)}`;
+    this.ind.setAttribute('d', d);
+    const t0 = x1 + sw + 4, t1 = W - sw / 2;
+    this.trk.setAttribute('d', t0 < t1 ? `M${t0.toFixed(1)} ${y}L${t1.toFixed(1)} ${y}` : '');
+    this.stop.setAttribute('cx', W - 2.5); this.stop.setAttribute('cy', y);
+  }
+  destroy() { this.ro.disconnect(); }
+}
+
+/* o alvo pendente fica no elemento: duas trocas rápidas (ex.: cadeado liga/desliga) nunca deixam o texto velho */
+function swapText(el, txt, animate) {
+  const cur = el._want !== undefined ? el._want : el.textContent;
+  if (cur === txt) return;
+  el._want = txt;
+  if (!animate || reduce || !el.animate) {
+    if (el._swap) { el._swap.cancel(); el._swap = null; }
+    el.textContent = txt; return;
+  }
+  if (el._swap) return; /* saída já em curso: ao terminar, escreve o alvo mais recente */
+  const out = el._swap = el.animate([{opacity: 1, filter: 'blur(0px)'}, {opacity: 0, filter: 'blur(3px)'}], {duration: 110, easing: 'cubic-bezier(.4,0,1,1)'});
+  /* reserva: aba em segundo plano pode atrasar o onfinish; o texto não fica preso */
+  setTimeout(() => { if (el._swap === out) { out.cancel(); el._swap = null; el.textContent = el._want; } }, 260);
+  out.onfinish = () => {
+    if (el._swap !== out) return;
+    el._swap = null;
+    el.textContent = el._want;
+    el.animate([{opacity: 0, filter: 'blur(3px)', translate: '0 4px'}, {opacity: 1, filter: 'blur(0px)', translate: '0 0'}],
+      {duration: 220, easing: 'cubic-bezier(.2,0,0,1)'});
+  };
+}
+
+/* ================= dados ilustrativos ================= */
+const CAL = {pes: 'pessoal', cor: 'corporativo', fer: 'feriados'};
+const EV = [
+  {id: 'daily',  d: 0, s: '09:00', e: '09:15', t: 'Daily do time',  cal: 'cor', rec: true,  video: true},
+  {id: 'bi',     d: 0, s: '10:30', e: '11:30', t: 'Revisão do BI',  cal: 'cor', video: true},
+  {id: 'umum',   d: 0, s: '15:00', e: '15:30', t: '1:1 semanal',    cal: 'cor', rec: true,  video: true},
+  {id: 'dent',   d: 0, s: '17:30', e: '18:30', t: 'Dentista',       cal: 'pes'},
+  {id: 'aniv',   d: 1, allday: true,           t: 'Aniversário',    cal: 'pes', rec: true},
+  {id: 'daily2', d: 3, s: '09:00', e: '09:15', t: 'Daily do time',  cal: 'cor', rec: true,  video: true},
+  {id: 'comite', d: 3, s: '10:00', e: '11:00', t: 'Comitê semanal', cal: 'cor', rec: true},
+];
+const DAYS = {0: 'Hoje', 1: 'amanhã, sábado', 3: 'segunda, 5/10'};
+const toM = s => { const [h, m] = s.split(':'); return +h * 60 + +m; };
+const fmt = m => { m = ((m % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const dur = m => { if (m < 60) return m + ' min'; const h = Math.floor(m / 60), r = m % 60; return r ? `${h}h${String(r).padStart(2, '0')}` : `${h}h`; };
+for (const e of EV) if (!e.allday) { e.S = toM(e.s); e.E = toM(e.e); }
+
+const S = {t: 877, scene: 'normal', wall: 'ardosia', priv: false};
+const ready = {clock: false, dia: false, agenda: false, claude: false, maq: false};
+const evs = () => EV.filter(e => !(S.scene === 'corp' && e.cal === 'cor'));
+const title = e => S.priv ? 'Compromisso' : e.t;
+
+/* ================= Relógio ================= */
+const clkH = new Roller($('#clkH')), clkM = new Roller($('#clkM'));
+function clockUpdate() {
+  const on = ready.clock, s = fmt(S.t);
+  clkH.set(on ? s.slice(0, 2) : '00', !on);
+  clkM.set(on ? s.slice(3) : '00', !on);
+}
+
+/* ================= Dia ================= */
+const dia = $('#dia'), stage = $('#stage'), vbtn = $('#vbtn');
+const RAD = {proximo: [32, 32, 32, 32], urgente: [22, 22, 22, 22], agora: [56, 14, 56, 14], livre: [72, 72, 72, 72]};
+const diaR = [0, 1, 2, 3].map(() => new Spring(32, CFG.shape, drawDiaR, .01));
+function drawDiaR() { dia.style.borderRadius = diaR.map(s => Math.max(0, s.x).toFixed(1) + 'px').join(' '); }
+const diaSc = new Spring(1, CFG.boing, x => { dia.style.transform = Math.abs(x - 1) < 1e-4 ? '' : `scale(${x.toFixed(4)})`; }, .0003);
+let face = null, role = null;
+
+function dayState(t) {
+  const today = evs().filter(e => e.d === 0 && !e.allday);
+  const cur = today.find(e => t >= e.S && t < e.E);
+  if (cur) return {role: 'agora', ev: cur, left: cur.E - t, prog: (t - cur.S) / (cur.E - cur.S)};
+  const nx = today.find(e => e.S > t);
+  if (nx) { const inn = nx.S - t; return {role: inn <= 15 ? 'urgente' : 'proximo', ev: nx, inn}; }
+  return {role: 'livre', from: today.length ? Math.max(...today.map(e => e.E)) : null};
+}
+function buildFace(key, st) {
+  const el = document.createElement('div'); el.className = 'face';
+  if (st.role === 'livre') {
+    el.innerHTML = '<p class="kick">Livre</p><h3 class="ttl"></h3><p class="meta">nada mais na agenda hoje</p>';
+    const ttl = el.querySelector('.ttl');
+    return {key, el, update(st) { ttl.textContent = st.from != null ? `dia livre a partir de ${fmt(st.from)}` : 'dia livre'; }};
+  }
+  if (st.role === 'agora') {
+    el.innerHTML = '<p class="kick">Agora</p><h3 class="ttl"></h3><div class="wave"></div><p class="meta">termina <span class="mono end"></span>, faltam <span class="roll left"></span></p>';
+    const ttl = el.querySelector('.ttl'), end = el.querySelector('.end'), r = new Roller(el.querySelector('.left'));
+    let wave = null, first = true;
+    return {key, el, update(st) {
+      swapText(ttl, title(st.ev), !first); end.textContent = st.ev.e; r.set(dur(st.left), first);
+      if (!wave) { wave = new Wave(el.querySelector('.wave')); wave.set(st.prog, true); wave.grow(first && !ready.dia); }
+      else wave.set(st.prog);
+      first = false;
+    }, destroy() { wave && wave.destroy(); }};
+  }
+  el.innerHTML = '<p class="kick">Próximo, <span class="roll inn"></span></p><h3 class="ttl"></h3><p class="meta"><span class="mono when"></span> <span class="cal"></span><span class="rep"></span></p>';
+  const ttl = el.querySelector('.ttl'), when = el.querySelector('.when'), cal = el.querySelector('.cal'), rep = el.querySelector('.rep');
+  const r = new Roller(el.querySelector('.inn')); let first = true;
+  return {key, el, update(st) {
+    r.set('em ' + dur(st.inn), first);
+    swapText(ttl, title(st.ev), !first);
+    when.textContent = `${st.ev.s} às ${st.ev.e},`;
+    cal.textContent = CAL[st.ev.cal];
+    rep.innerHTML = st.ev.rec ? ICON_REP.replace('aria-hidden="true"', 'role="img" aria-label="recorrente"') : '';
+    first = false;
+  }};
+}
+function enterFace(el) {
+  if (reduce) return;
+  el.style.opacity = 0;
+  const sp = el._enter = new Spring(0, CFG.enter, x => {
+    el.style.opacity = Math.min(1, Math.max(0, x * 1.5)).toFixed(3);
+    el.style.translate = `0 ${((1 - x) * 18).toFixed(2)}px`;
+    const b = Math.max(0, (1 - x) * 6);
+    el.style.filter = b > .1 ? `blur(${b.toFixed(2)}px)` : '';
+    if (x === 1) { el.style.opacity = ''; el.style.translate = ''; el.style.filter = ''; }
+  }, .001);
+  el._enterT = setTimeout(() => sp.to(1), 60);
+}
+function exitFace(f) {
+  f.destroy && f.destroy();
+  /* face que ainda estava entrando: para a mola e solta o estilo inline, senão ele vence o .out e a saída some */
+  if (f.el._enter) { clearTimeout(f.el._enterT); active.delete(f.el._enter); f.el._enter = null; }
+  f.el.style.opacity = f.el.style.translate = f.el.style.filter = '';
+  if (reduce) { f.el.remove(); return; }
+  f.el.classList.add('out'); f.el.setAttribute('aria-hidden', 'true');
+  setTimeout(() => f.el.remove(), 200);
+}
+function diaUpdate() {
+  const st = dayState(S.t);
+  const key = st.role === 'livre' ? 'livre' : (st.role === 'agora' ? 'agora:' : 'prox:') + st.ev.id;
+  if (!face || face.key !== key) {
+    const old = face;
+    face = buildFace(key, st);
+    stage.appendChild(face.el);
+    face.update(st);
+    if (old) { exitFace(old); enterFace(face.el); }
+  } else face.update(st);
+
+  if (st.role !== role) {
+    const rad = RAD[st.role];
+    diaR.forEach((s, i) => role === null ? s.snap(rad[i]) : s.to(rad[i]));
+    if (role !== null && !reduce) diaSc.from(.965, 1);
+    dia.dataset.role = st.role; role = st.role;
+  }
+  const ev = st.ev, lit = ev && ev.video && (st.role === 'agora' || st.inn <= 10);
+  vbtn.dataset.s = !ev || !ev.video ? 'off' : lit ? 'lit' : 'dim';
+  vbtn.disabled = vbtn.dataset.s === 'off';
+  vbtn.setAttribute('aria-disabled', String(!lit));
+  vbtn.setAttribute('aria-label', lit ? `Entrar na videochamada de ${title(ev)}` : 'Videochamada ainda não aberta');
+}
+
+/* linha do dia */
+const tl = $('#tl');
+let tlW = 380; const PAD = 6;
+const tx = m => PAD + (m - 420) / 840 * (tlW - 2 * PAD);
+const tlTrack = mk('line', {class: 'tl-track', y1: 30, y2: 30}, tl);
+const tlBlk = new Map();
+for (const e of EV) if (e.d === 0 && !e.allday) {
+  const r = mk('rect', {class: 'tl-blk fut', y: 24, height: 12, rx: 6}, tl);
+  mk('title', {}, r).textContent = `${e.s} às ${e.e}`;
+  tlBlk.set(e.id, r);
+}
+const HOURS = [7, 9, 12, 15, 18, 21];
+const tlLab = HOURS.map((h, i) => {
+  const t = mk('text', {class: 'tl-h', y: 57, 'text-anchor': i === 0 ? 'start' : i === HOURS.length - 1 ? 'end' : 'middle'}, tl);
+  t.textContent = String(h).padStart(2, '0'); return t;
+});
+const tlRec = mk('g', {class: 'tl-rec'}, tl);
+const tlRecTit = mk('title', {}, tlRec); tlRecTit.textContent = 'Claude renova às 14:59';
+/* marca a PRÓXIMA renovação dentro da faixa 07–21h (igual à legenda do Claude); depois das 19:59 a próxima cai fora: fica a última, apagada */
+function tlRecAlvo() {
+  const n = [599, 899, 1199].find(r => r > S.t);
+  return n === undefined ? {t: 1199, foi: true} : {t: n, foi: false};
+}
+function tlRecPos() {
+  const a = tlRecAlvo();
+  tlRec.setAttribute('transform', `translate(${tx(a.t).toFixed(1)} 0)`);
+  tlRec.style.opacity = a.foi ? '.35' : '';
+  const h = `${String(Math.floor(a.t / 60)).padStart(2, '0')}:${String(a.t % 60).padStart(2, '0')}`;
+  tlRecTit.textContent = a.foi ? `Claude renovou às ${h}` : `Claude renova às ${h}`;
+}
+const recSvg = mk('svg', {x: -6, y: 1, width: 12, height: 12, viewBox: '0 0 16 16'}, tlRec);
+recSvg.innerHTML = ICON_REP.replace(/^<svg[^>]*>|<\/svg>$/g, '');
+recSvg.setAttribute('fill', 'none'); recSvg.setAttribute('stroke', 'currentColor'); recSvg.setAttribute('stroke-width', '1.8');
+recSvg.setAttribute('stroke-linecap', 'round'); recSvg.setAttribute('stroke-linejoin', 'round');
+mk('line', {x1: 0, x2: 0, y1: 16, y2: 22, stroke: 'currentColor', 'stroke-width': 1.5, 'stroke-linecap': 'round', 'stroke-opacity': .6}, tlRec);
+const tlNeedle = mk('g', {class: 'tl-needle'}, tl);
+mk('rect', {x: -2, y: 15, width: 4, height: 30, rx: 2}, tlNeedle);
+const needleS = new Spring(S.t, CFG.needle, m => tlNeedle.setAttribute('transform', `translate(${tx(m).toFixed(2)} 0)`), .02);
+function tlLayout() {
+  tlW = tl.clientWidth || tlW;
+  tl.setAttribute('viewBox', `0 0 ${tlW} 60`);
+  tlTrack.setAttribute('x1', PAD + 2); tlTrack.setAttribute('x2', tlW - PAD - 2);
+  for (const e of EV) if (tlBlk.has(e.id)) {
+    const r = tlBlk.get(e.id), x0 = tx(e.S), x1 = tx(e.E);
+    r.setAttribute('x', x0.toFixed(1)); r.setAttribute('width', Math.max(8, x1 - x0).toFixed(1));
+  }
+  HOURS.forEach((h, i) => tlLab[i].setAttribute('x', i === 0 ? PAD : i === HOURS.length - 1 ? tlW - PAD : tx(h * 60)));
+  tlRecPos();
+  needleS.cb(needleS.x, 0);
+}
+new ResizeObserver(tlLayout).observe(tl);
+function tlUpdate() {
+  const vis = new Set(evs().map(e => e.id));
+  for (const [id, r] of tlBlk) {
+    const e = EV.find(x => x.id === id);
+    r.setAttribute('class', 'tl-blk ' + (!vis.has(id) ? 'gone' : S.t >= e.E ? 'past' : S.t >= e.S ? 'now' : 'fut'));
+  }
+  tlRecPos();
+  needleS.to(S.t);
+}
+
+/* ================= Agenda (lista com chave, FLIP por mola) ================= */
+const agList = $('#agList'), rowEls = new Map();
+function agendaRows() {
+  const rows = [], E = evs(), t = S.t;
+  if (S.scene === 'corp') rows.push({key: 'err', type: 'err'});
+  for (const d of [0, 1, 3]) {
+    let list = E.filter(e => e.d === d);
+    if (d === 0) list = list.filter(e => e.E > t);
+    if (!list.length && d !== 0) continue;
+    rows.push({key: 'g' + d, type: 'g', text: DAYS[d]});
+    if (d === 0 && !list.length) rows.push({key: 'nada', type: 'gap', text: 'nada mais hoje'});
+    list.forEach((e, i) => {
+      rows.push({key: e.id, type: 'ev', e, now: d === 0 && t >= e.S});
+      const n = list[i + 1];
+      if (d === 0 && n && n.S - e.E >= 60) rows.push({key: 'gap-' + e.id, type: 'gap', text: `livre ${e.e} às ${n.s}, ${dur(n.S - e.E)}`});
+    });
+  }
+  rows.push({key: 'more', type: 'more', text: S.scene === 'corp' ? 'mais 2 eventos até 16/10' : 'mais 6 eventos até 16/10'});
+  return rows;
+}
+function createRow(r) {
+  let el;
+  if (r.type === 'g') { el = document.createElement('p'); el.className = 'ag-g'; }
+  else if (r.type === 'more') { el = document.createElement('p'); el.className = 'more'; }
+  else if (r.type === 'err') {
+    el = document.createElement('div'); el.className = 'err'; el.setAttribute('role', 'status');
+    el.innerHTML = '<span><b>Agenda corporativa sem resposta desde 13:05.</b> Os eventos dela saíram da lista até a conexão voltar. Reconecte a conta pela bandeja.</span>';
+  } else if (r.type === 'gap') {
+    el = document.createElement('div'); el.className = 'row gap';
+    el.innerHTML = '<span class="gap-line"></span><span class="gap-t"></span>';
+  } else {
+    el = document.createElement('div'); el.className = 'row ev'; el.tabIndex = 0; el.setAttribute('role', 'group');
+    el.innerHTML = '<span class="tm"></span><span class="dot"></span><span class="tt"></span><span class="ic"></span>';
+  }
+  el.dataset.key = r.key;
+  return el;
+}
+function updateRow(el, r, animate) {
+  if (r.type === 'g' || r.type === 'more') el.textContent = r.text;
+  else if (r.type === 'gap') el.querySelector('.gap-t').textContent = r.text;
+  else if (r.type === 'ev') {
+    const tm = el.querySelector('.tm'), e = r.e;
+    tm.textContent = r.now ? 'agora' : e.allday ? 'dia todo' : e.s;
+    tm.classList.toggle('now', !!r.now);
+    el.querySelector('.dot').style.setProperty('--c', `var(--ag-${e.cal})`);
+    swapText(el.querySelector('.tt'), title(e), animate);
+    el.querySelector('.ic').innerHTML = e.rec ? ICON_REP : '';
+    el.setAttribute('aria-label', `${r.now ? 'agora' : e.allday ? 'dia todo' : e.s + ' às ' + e.e}, ${title(e)}, agenda ${CAL[e.cal]}${e.rec ? ', recorrente' : ''}`);
+  }
+}
+function agendaUpdate() {
+  const animate = ready.agenda && !reduce;
+  const rows = agendaRows(), keys = new Set(rows.map(r => r.key));
+  const before = new Map();
+  if (animate) for (const [k, el] of rowEls) before.set(k, el.getBoundingClientRect().top);
+  for (const [k, el] of rowEls) if (!keys.has(k)) {
+    rowEls.delete(k);
+    if (!animate) { el.remove(); continue; }
+    const top = el.offsetTop, h = el.offsetHeight;
+    Object.assign(el.style, {position: 'absolute', top: top + 'px', left: 0, right: 0, height: h + 'px', pointerEvents: 'none'});
+    el.setAttribute('aria-hidden', 'true'); el.classList.add('leaving');
+    const a = el.animate([{opacity: 1, scale: '1', filter: 'blur(0px)'}, {opacity: 0, scale: '.96', filter: 'blur(3px)'}],
+      {duration: 180, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards'});
+    a.onfinish = () => el.remove();
+    setTimeout(() => el.remove(), 260); /* reserva: aba em segundo plano pausa a linha do tempo das animações */
+  }
+  let cursor = agList.firstElementChild;
+  const skip = () => { while (cursor && cursor.classList.contains('leaving')) cursor = cursor.nextElementSibling; };
+  const fresh = [];
+  for (const r of rows) {
+    let el = rowEls.get(r.key);
+    if (!el) { el = createRow(r); rowEls.set(r.key, el); fresh.push(el); }
+    updateRow(el, r, animate);
+    skip();
+    if (el !== cursor) agList.insertBefore(el, cursor);
+    else cursor = cursor.nextElementSibling;
+  }
+  if (!animate) return;
+  for (const [k, el] of rowEls) {
+    if (fresh.includes(el)) continue;
+    const dy = before.get(k) - el.getBoundingClientRect().top;
+    if (Math.abs(dy) < .5) continue;
+    if (!el._fy) el._fy = new Spring(0, CFG.row, y => { el.style.translate = Math.abs(y) < .05 ? '' : `0 ${y.toFixed(2)}px`; }, .01);
+    el._fy.from(el._fy.x + dy, 0);
+  }
+  fresh.forEach((el, i) => {
+    el.style.opacity = 0;
+    const sp = new Spring(0, CFG.row, x => {
+      el.style.opacity = Math.min(1, Math.max(0, x * 1.4)).toFixed(3);
+      el.style.translate = `0 ${((1 - x) * 10).toFixed(2)}px`;
+      const b = Math.max(0, (1 - x) * 4);
+      el.style.filter = b > .1 ? `blur(${b.toFixed(2)}px)` : '';
+      if (x === 1) { el.style.opacity = ''; el.style.translate = ''; el.style.filter = ''; }
+    }, .001);
+    setTimeout(() => sp.to(1), 40 + i * 35);
+  });
+}
+function healthUpdate() {
+  for (const i of document.querySelectorAll('#health i')) {
+    const fail = S.scene === 'corp' && i.dataset.src === 'cor';
+    i.classList.toggle('fail', fail);
+    const nome = CAL[i.dataset.src];
+    i.title = `${nome}: ${fail ? 'sem resposta desde 13:05' : 'sincronizada'}`;
+    i.setAttribute('aria-label', `Agenda ${nome} ${fail ? 'sem resposta desde 13:05' : 'sincronizada'}`);
+  }
+}
+
+/* ================= Claude ================= */
+const GREEN = '#30A46C', AMBER = '#F5A623', RED = '#E5484D', GREY = '#747684';
+const clRing = new Ring($('#clRing'), {px: 136, sw: 9, dot: true});
+const clN = new Roller($('#clN')), clCap = $('#clCap'), clLeg = $('#clLeg');
+const c6a = new Bar($('#c6a')), c6b = new Bar($('#c6b'));
+const RESETS = [599, 899, 1199, 1499];
+function claudePct(t) {
+  if (t >= 1199) return 4 + (t - 1199) * .11;
+  if (t >= 899) return 4 + (t - 899) * .12;
+  if (t >= 599) return 4 + 67 * (t - 599) / 278;
+  return 38 + (t - 420) * .12;
+}
+const claudeColor = p => p >= 85 ? RED : p >= 60 ? AMBER : GREEN;
+const claudeState = p => p >= 85 ? 2 : p >= 60 ? 1 : 0;
+function claudeUpdate() {
+  const on = ready.claude, stale = S.scene === 'velho', lim = S.scene === 'limite';
+  /* dado velho = a última leitura da bandeja, de 47 min atrás: não acompanha o horário nem renova sozinho */
+  const STALE = 47, tMed = stale ? S.t - STALE : S.t;
+  let p = Math.round(lim ? 97 : claudePct(tMed));
+  const zoom = !stale && p >= 95;
+  const f = zoom ? (p - 95) / 5 : p / 100;
+  const st = stale ? 0 : claudeState(p);
+  clRing.set({f: on ? f : 0, color: stale ? GREY : claudeColor(p), amp: on ? [0, .05, .1][st] : 0, zoom: on && zoom, state: st}, !on);
+  clN.set(on ? String(p) : '0', !on);
+  $('#clRing .ring-n').style.opacity = stale ? .62 : '';
+  clCap.textContent = stale ? `há ${STALE} min` : zoom ? 'zoom 95+' : '';
+  const nr = RESETS.find(r => r > S.t);
+  const renova = `renova ${fmt(nr)} (em ${dur(nr - S.t)})`;
+  clLeg.innerHTML = stale
+    ? `<b>5h, conta 4</b>, sem medição nova há ${STALE} min (última às ${fmt(tMed)})`
+    : zoom ? `<b>5h, conta 4</b>, ${renova}, arco de 95 a 100%`
+           : `<b>5h, conta 4</b>, ${renova}`;
+  clRing.host.setAttribute('aria-label', stale ? `Claude, janela de 5h: ${p}%, medição de ${STALE} minutos atrás`
+    : zoom ? `Claude, janela de 5h: ${p}%, arco ampliado de 95 a 100%` : `Claude, janela de 5h: ${p}%`);
+  clRing.host.setAttribute('role', 'img');
+  const a = 18, b = 90;
+  c6a.set(on ? a / 100 : 0, stale ? GREY : claudeColor(a), !on);
+  c6b.set(on ? b / 100 : 0, stale ? GREY : claudeColor(b), !on);
+}
+
+/* ================= Máquina ================= */
+const G = {
+  cpu: {ring: new Ring($('#gCpu'), {px: 68, sw: 11}), n: new Roller($('#nCpu'))},
+  ram: {ring: new Ring($('#gRam'), {px: 68, sw: 11}), n: new Roller($('#nRam'))},
+  gpu: {ring: new Ring($('#gGpu'), {px: 68, sw: 11}), n: new Roller($('#nGpu'))},
+  c:   {ring: new Ring($('#gC'),   {px: 68, sw: 11}), n: new Roller($('#nC'))},
+};
+const dG = new Bar($('#dG')), dI = new Bar($('#dI'));
+/* regra: CPU, RAM e GPU ficam neutros em repouso; âmbar a partir de 85, vermelho a partir de 95. C: segue neutro. */
+const sysState = p => p >= 95 ? 2 : p >= 85 ? 1 : 0;
+function maqUpdate() {
+  const on = ready.maq, load = S.scene === 'carga';
+  const V = load ? {cpu: 96, ram: 88, gpu: 41, ramG: '13,4G'} : {cpu: 23, ram: 61, gpu: 12, ramG: '9,3G'};
+  for (const k of ['cpu', 'ram', 'gpu']) {
+    const p = V[k], st = sysState(p);
+    G[k].ring.set({f: on ? p / 100 : 0, color: ['', AMBER, RED][st], amp: on ? [0, .05, .1][st] : 0, state: st}, !on);
+    G[k].n.set(on ? String(p) : '0', !on);
+    G[k].ring.host.setAttribute('role', 'img');
+    G[k].ring.host.setAttribute('aria-label', `${k.toUpperCase()} ${p}%`);
+  }
+  $('#ramG').textContent = V.ramG;
+  G.c.ring.set({f: on ? .83 : 0, state: 0}, !on);
+  G.c.n.set(on ? '80' : '0', !on);
+  G.c.ring.host.setAttribute('role', 'img'); G.c.ring.host.setAttribute('aria-label', 'Disco C: 80 GB livres, 83% usado');
+  dG.set(on ? .74 : 0, '', !on); dI.set(on ? 4 / 15 : 0, '', !on);
+}
+
+/* ================= orquestração ================= */
+const tm = $('#tm'), tmOut = $('#tmOut');
+function update() {
+  tmOut.value = fmt(S.t);
+  tm.setAttribute('aria-valuetext', fmt(S.t));
+  tm.style.setProperty('--pct', ((S.t - 420) / 840 * 100).toFixed(2) + '%');
+  clockUpdate(); diaUpdate(); tlUpdate(); agendaUpdate(); healthUpdate(); claudeUpdate(); maqUpdate();
+}
+tm.addEventListener('input', () => { S.t = +tm.value; update(); });
+$('#scenes').addEventListener('click', e => {
+  const b = e.target.closest('[data-scene]'); if (!b) return;
+  S.scene = b.dataset.scene;
+  for (const x of document.querySelectorAll('[data-scene]')) x.setAttribute('aria-pressed', String(x === b));
+  update();
+});
+$('#walls').addEventListener('click', e => {
+  const b = e.target.closest('[data-wall]'); if (!b) return;
+  S.wall = b.dataset.wall; document.body.dataset.wall = S.wall;
+  for (const x of document.querySelectorAll('[data-wall]')) x.setAttribute('aria-pressed', String(x === b));
+  for (const w of document.querySelectorAll('.wall')) w.classList.toggle('on', w.id === 'wall-' + S.wall);
+});
+$('#lock').addEventListener('click', e => {
+  S.priv = !S.priv; e.currentTarget.setAttribute('aria-pressed', String(S.priv)); update();
+});
+vbtn.addEventListener('click', () => {
+  if (vbtn.dataset.s !== 'lit' || reduce || !vbtn.animate) return;
+  try {
+    vbtn.animate([{scale: '1'}, {scale: '.94'}, {scale: '1'}], {duration: 260, easing: getComputedStyle(document.documentElement).getPropertyValue('--sp-boing').trim() || 'ease-out'});
+  } catch (_) { /* curva não suportada pela Web Animations: o :active do CSS já dá o retorno */ }
+});
+
+/* coreografia de entrada: uma vez, em cascata; cada widget aterrissa e só então os dados rolam/varrem */
+const ORDER = [['clock', '.w-clock'], ['dia', '.w-dia'], ['agenda', '.w-agenda'], ['claude', '.w-claude'], ['maq', '.w-maq']];
+let introTimers = [];
+function intro() {
+  introTimers.forEach(clearTimeout); introTimers = [];
+  const els = ORDER.map(([, s]) => $(s)).concat($('#demo'));
+  if (reduce) {
+    for (const w of els) { if (w._in) active.delete(w._in); w.style.opacity = w.style.translate = w.style.scale = w.style.filter = ''; }
+    for (const k in ready) ready[k] = true; update(); return;
+  }
+  for (const k in ready) ready[k] = false;
+  update();
+  els.forEach((w, i) => {
+    const isDemo = w.id === 'demo';
+    if (w._in) active.delete(w._in); /* repetir entrada: a mola anterior não disputa o mesmo widget */
+    w.style.opacity = 0;
+    const sp = w._in = new Spring(0, CFG.enter, x => {
+      w.style.opacity = Math.min(1, Math.max(0, x * 1.6)).toFixed(3);
+      const ty = (1 - x) * (isDemo ? 40 : 28);
+      w.style.translate = isDemo ? `-50% ${ty.toFixed(2)}px` : `0 ${ty.toFixed(2)}px`;
+      w.style.scale = isDemo ? '' : (.94 + .06 * x).toFixed(4);
+      const b = Math.max(0, (1 - x) * 8);
+      w.style.filter = b > .1 ? `blur(${b.toFixed(2)}px)` : '';
+      if (x === 1) { w.style.opacity = ''; w.style.translate = ''; w.style.scale = ''; w.style.filter = ''; }
+    }, .001);
+    introTimers.push(setTimeout(() => sp.to(1), 80 + i * 75));
+    if (!isDemo) introTimers.push(setTimeout(() => { ready[ORDER[i][0]] = true; update(); }, 80 + i * 75 + 260));
+  });
+}
+$('#replay').addEventListener('click', intro);
+
+tlLayout();
+intro();
+})();
+</script>
+</body>
+</html>
