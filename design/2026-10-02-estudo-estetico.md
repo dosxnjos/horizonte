@@ -105,14 +105,27 @@ rota é o plugin WebView2 dentro do Rainmeter.
 > expressivo"
 
 A escolha vai contra a recomendação dos juízes, que preferiam o Instrumento. Vale
-o gosto do dono: o Expressivo ficou em 2º, com viabilidade 7 no Rainmeter. A base
-de trabalho é [`horizonte-v1.html`](horizonte-v1.html), que parte do Expressivo
-com o conteúdo já decidido:
-- só o disco C:, com o rótulo "Windows";
+o gosto do dono: o Expressivo ficou em 2º, com viabilidade 7 no Rainmeter.
+
+Na rodada seguinte ele explicou que "a Aurora me ganhou em tudo", mas que o
+Expressivo combina mais com o momento e com o papel de parede atual, e pediu as
+**duas**. Ficam então dois temas do mesmo pacote:
+- [`horizonte-v1-expressivo.html`](horizonte-v1-expressivo.html), o tema em uso;
+- [`horizonte-v1-aurora.html`](horizonte-v1-aurora.html), o tema alternativo.
+
+Conteúdo já decidido, aplicado aos dois:
+- só o disco C:, com o rótulo "SSD";
 - contas Claude chamadas `produto` e `dados`.
 
-A [direção original](direcoes/expressivo.html) fica intacta como registro do
-estudo.
+Correções pedidas pelo dono, também nos dois:
+- **Relógio:** o letter-spacing negativo deixava cada slot de dígito mais
+  estreito que o próprio glifo, e o recorte do slot cortava o dígito vizinho (o
+  "quadrado do 7 sobre o 3"). O slot ganhou folga lateral e o aperto passou para a
+  margem.
+- **"zoom 95+" saiu do anel do Claude:** o texto não explicava nada. A troca de
+  escala continua marcada pelo ponto, como no ícone da bandeja.
+
+As [direções originais](direcoes/) ficam intactas como registro do estudo.
 
 **Pontos fracos do Expressivo apontados pelos juízes, a resolver na v1:**
 - **Cara de Google:** é a assinatura do Material 3, e o nome "Horizonte" não
@@ -123,8 +136,10 @@ estudo.
 
 ## Decisões em aberto (dono: Gabriel)
 
-1. ~~Direção~~: Expressivo. Em aberto: o que da Aurora entra nele.
-2. **Cor do AGORA:** o âmbar colide com o anel do Claude em âmbar. Os juízes
-   recomendam azul-aço para o AGORA, deixando âmbar e vermelho só para alerta.
-3. **Relógio:** dígitos cheios (leitura imediata) ou matriz de pontos (assinatura
-   mais forte).
+1. ~~Direção~~: dois temas, Expressivo (em uso) e Aurora.
+2. **Cor do "agora" no tema Aurora.** Lá, o "agora" é âmbar e o anel do Claude
+   também fica âmbar a partir de 60%. A recomendação é trocar o "agora" para outra
+   cor. No Expressivo o conflito é menor: o "agora" pinta o cartão inteiro de
+   laranja e o anel do Claude fica em outro widget.
+3. ~~Relógio~~: os dois temas usam dígitos cheios. A matriz de pontos era só do
+   Instrumento, que saiu.

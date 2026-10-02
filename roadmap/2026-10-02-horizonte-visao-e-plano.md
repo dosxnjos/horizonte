@@ -566,9 +566,15 @@ Opcional nesta fase: **Calendar API v3** com OAuth de app instalado, que traz:
 **Em aberto:**
 1. **Fase 5 / Calendar API:** só depois de 2 semanas com o pacote.
 2. **Atalho por AutoHotkey,** só se o `.lnk` falhar na fase 3.
-3. **Direção estética: Expressivo** (Gabriel, 02/10). Ele também gostou muito
-   da Aurora; falta definir o que dela entra. A base é
-   [`design/horizonte-v1.html`](../design/horizonte-v1.html) e o estudo está em
+3. **Direção estética: dois temas no mesmo pacote** (Gabriel, 02/10).
+   - **Expressivo**, o tema em uso: combina com o momento e com o papel de parede
+     dele. Base:
+     [`design/horizonte-v1-expressivo.html`](../design/horizonte-v1-expressivo.html).
+   - **Aurora**, o tema alternativo: "me ganhou em tudo". Base:
+     [`design/horizonte-v1-aurora.html`](../design/horizonte-v1-aurora.html).
+
+   O tema troca por uma variável em `@Resources`, e os widgets são os mesmos nos
+   dois. O estudo está em
    [`design/2026-10-02-estudo-estetico.md`](../design/2026-10-02-estudo-estetico.md).
 
    A identidade visual da § 1 (tokens "céu noturno") fica **superada** pela do

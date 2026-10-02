@@ -127,6 +127,11 @@ h2,h3,p{margin:0}
 .roll .reel{display:block;will-change:transform}
 .roll .reel i{display:block;height:1.1em;line-height:1.1em;font-style:normal;text-align:center}
 .roll .sep{display:inline-block;line-height:1.1em}
+/* relógio: o letter-spacing negativo deixava cada slot mais estreito que o próprio
+   dígito, e o overflow do slot cortava a borda do dígito ao lado (o "quadrado" sobre o 3).
+   Agora o slot tem folga lateral e o aperto vem da margem negativa, sem cortar glifo. */
+.clk-time .roll .reel i{letter-spacing:0}
+.clk-time .roll .slot{padding-inline:.06em;margin-inline:-.085em}
 
 /* ---------- Dia: a superfície inteira muda de papel e de forma ---------- */
 .w-dia{--dbg:var(--s-hi);--don:var(--on);background:var(--dbg);color:var(--don);
@@ -383,7 +388,7 @@ input[type=range]:focus-visible{outline-offset:2px;border-radius:10px}
         <figure class="g"><div class="ring" id="gCpu" style="--sz:68px"><div class="ring-c"><span class="ring-n"><span class="roll" id="nCpu"></span><span class="ring-u">%</span></span></div></div><figcaption>CPU</figcaption></figure>
         <figure class="g"><div class="ring" id="gRam" style="--sz:68px"><div class="ring-c"><span class="ring-n"><span class="roll" id="nRam"></span><span class="ring-u">%</span></span></div></div><figcaption>RAM<small id="ramG">9,3G</small></figcaption></figure>
         <figure class="g"><div class="ring" id="gGpu" style="--sz:68px"><div class="ring-c"><span class="ring-n"><span class="roll" id="nGpu"></span><span class="ring-u">%</span></span></div></div><figcaption>GPU</figcaption></figure>
-        <figure class="g"><div class="ring" id="gC" style="--sz:68px"><div class="ring-c"><span class="ring-n"><span class="roll" id="nC"></span><span class="ring-u">GB</span></span></div></div><figcaption>Windows<small>livres</small></figcaption></figure>
+        <figure class="g"><div class="ring" id="gC" style="--sz:68px"><div class="ring-c"><span class="ring-n"><span class="roll" id="nC"></span><span class="ring-u">GB</span></span></div></div><figcaption>SSD<small>livres</small></figcaption></figure>
       </div>
     </section>
   </div>
@@ -1023,13 +1028,12 @@ function claudeUpdate() {
   clRing.set({f: on ? f : 0, color: stale ? GREY : claudeColor(p), amp: on ? [0, .05, .1][st] : 0, zoom: on && zoom, state: st}, !on);
   clN.set(on ? String(p) : '0', !on);
   $('#clRing .ring-n').style.opacity = stale ? .62 : '';
-  clCap.textContent = stale ? `há ${STALE} min` : zoom ? 'zoom 95+' : '';
+  clCap.textContent = stale ? `há ${STALE} min` : '';
   const nr = RESETS.find(r => r > S.t);
   const renova = `renova ${fmt(nr)} (em ${dur(nr - S.t)})`;
   clLeg.innerHTML = stale
     ? `<b>5h, produto</b>, sem medição nova há ${STALE} min (última às ${fmt(tMed)})`
-    : zoom ? `<b>5h, produto</b>, ${renova}, arco de 95 a 100%`
-           : `<b>5h, produto</b>, ${renova}`;
+    : `<b>5h, produto</b>, ${renova}`;
   clRing.host.setAttribute('aria-label', stale ? `Claude, janela de 5h: ${p}%, medição de ${STALE} minutos atrás`
     : zoom ? `Claude, janela de 5h: ${p}%, arco ampliado de 95 a 100%` : `Claude, janela de 5h: ${p}%`);
   clRing.host.setAttribute('role', 'img');
@@ -1060,7 +1064,7 @@ function maqUpdate() {
   $('#ramG').textContent = V.ramG;
   G.c.ring.set({f: on ? .83 : 0, state: 0}, !on);
   G.c.n.set(on ? '80' : '0', !on);
-  G.c.ring.host.setAttribute('role', 'img'); G.c.ring.host.setAttribute('aria-label', 'Windows (C:): 80 GB livres, 83% usado');
+  G.c.ring.host.setAttribute('role', 'img'); G.c.ring.host.setAttribute('aria-label', 'SSD (C:): 80 GB livres, 83% usado');
 }
 
 /* ================= orquestração ================= */
