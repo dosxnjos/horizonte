@@ -1,0 +1,15 @@
+# dados locais e segredos: nunca no repo público (roadmap § 3.1)
+config.toml
+.segredos-locais
+*.log
+*.json
+!tests/**/*.json
+temp/
+.playwright-mcp/
+
+# índice de roadmap gerado para o vault pessoal (texto do gerador cita outros projetos)
+roadmap/README.md
+
+# ambiente Python
+.venv/
+__pycache__/

@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizonte</title>
+<meta name="description" content="Visão do Horizonte, um pacote de widgets de desktop para Rainmeter: agenda, máquina e Claude numa olhada. Mockup interativo, 02/10/2026.">
+<style>
+:root{
+  --noite:#101522; --noite2:#1A2338; --crepusculo:#3B3554; --sol:#FFC27A;
+  --base:rgba(14,16,19,.88); --sup:rgba(255,255,255,.045);
+  --linha:#262A31; --borda:rgba(255,255,255,.06);
+  --texto:#EEF0F3; --sec:#B4BAC5; --ter:#8E95A3;
+  --instr:#C5CEDB;
+  --ag1:#7AA2F7; --ag2:#C3A6FF; --fer:#5FD0B5;
+  --alerta:#F5A623; --critico:#E5484D; --ok:#30A46C; --velho:#747684;
+  --trilho-claude:rgba(150,150,160,.47); --trilho-barra:#46464E;
+  --display:"Segoe UI Variable Display","Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+  --text:"Segoe UI Variable Text","Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+  --mono:"Cascadia Mono","Cascadia Code",Consolas,ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--noite);color-scheme:dark}
+body{font-family:var(--text);color:var(--texto);background:var(--noite);line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--sol);outline-offset:2px;border-radius:4px}
+
+/* ---------- cena: o desktop ao entardecer ---------- */
+.cena{position:relative;min-height:100vh;padding:48px 16px 72px;
+  background:
+    radial-gradient(120% 60% at 70% 104%, rgba(255,194,122,.30), rgba(255,194,122,0) 55%),
+    linear-gradient(180deg,var(--noite) 0%,var(--noite2) 45%,var(--crepusculo) 86%,#5a4552 100%);
+  overflow:hidden}
+.cena::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,194,122,.65) 40%,rgba(255,194,122,.65) 70%,transparent)}
+.estrelas{position:absolute;inset:0;pointer-events:none;opacity:.55;
+  background-image:radial-gradient(1px 1px at 12% 18%,#fff8 50%,transparent 51%),radial-gradient(1px 1px at 33% 9%,#fff6 50%,transparent 51%),
+  radial-gradient(1px 1px at 58% 22%,#fff7 50%,transparent 51%),radial-gradient(1.4px 1.4px at 81% 12%,#fff9 50%,transparent 51%),
+  radial-gradient(1px 1px at 90% 34%,#fff5 50%,transparent 51%),radial-gradient(1px 1px at 47% 40%,#fff4 50%,transparent 51%),
+  radial-gradient(1px 1px at 69% 47%,#fff4 50%,transparent 51%),radial-gradient(1px 1px at 22% 52%,#fff3 50%,transparent 51%)}
+.cena-grade{position:relative;max-width:1180px;margin:0 auto;display:grid;grid-template-columns:376px minmax(0,1fr);gap:64px;align-items:start}
+.coluna{display:flex;flex-direction:column;gap:12px}
+.manifesto{padding-top:16px}
+.manifesto h1{font-family:var(--display);font-weight:600;font-size:clamp(48px,7vw,92px);line-height:.95;letter-spacing:-.035em}
+.manifesto h1 span{display:block;font-weight:300;color:var(--sec);font-size:.42em;letter-spacing:-.01em;margin-top:14px;line-height:1.15}
+.manifesto p{color:var(--sec);font-size:17px;margin-top:22px;max-width:48ch}
+.controles{margin-top:30px;padding:20px 22px;border-radius:14px;background:rgba(10,12,18,.42);border:1px solid var(--borda);max-width:520px}
+.controles label{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;color:var(--sec)}
+.controles output{font-family:var(--mono);color:var(--sol);font-size:15px}
+.controles input[type=range]{width:100%;margin:10px 0 4px;accent-color:var(--sol)}
+.controles .dica{font-size:13px;color:var(--ter)}
+.alternar{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.alternar button{background:transparent;border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--sec);cursor:pointer}
+.alternar button[aria-pressed=true]{border-color:var(--sol);color:var(--texto);background:rgba(255,194,122,.10)}
+.par{display:flex;gap:16px;flex-wrap:wrap;margin-top:28px;align-items:flex-start}
+.solto{font-size:13px;color:var(--ter);margin-top:12px}
+.solto button{background:none;border:0;color:var(--sol);cursor:pointer;font-size:13px;text-decoration:underline;text-underline-offset:3px}
+
+/* ---------- widgets (escala real, px lógicos) ---------- */
+.widget{border-radius:16px;background:var(--base);position:relative;max-width:100%;
+  box-shadow:inset 0 0 0 1px var(--borda),0 20px 50px -20px rgba(0,0,0,.6);padding:16px 18px;
+  text-shadow:0 1px 2px rgba(0,0,0,.43)}
+.widget::before{content:"";position:absolute;inset:0 0 auto 0;height:22px;border-radius:16px 16px 0 0;
+  background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,0));pointer-events:none}
+.widget.arrastavel{cursor:grab;touch-action:none}
+.widget.arrastando{cursor:grabbing;z-index:5;box-shadow:inset 0 0 0 1px rgba(255,194,122,.45),0 30px 60px -18px rgba(0,0,0,.75)}
+.w-relogio{padding:16px 18px 14px}
+.relogio{font-family:var(--display);font-weight:600;font-size:60px;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.data{margin-top:8px;font-size:15px;color:var(--sec);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.chip{font-size:11.5px;color:var(--fer);border:1px solid rgba(95,208,181,.35);border-radius:999px;padding:1px 8px}
+
+.heroi{border-radius:12px;background:var(--sup);padding:11px 12px 11px 15px;position:relative;min-height:74px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center}
+.heroi::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:2px;background:var(--cor,var(--ag1))}
+.heroi.pulsa::before{animation:pulso .6s ease-in-out 3}
+@keyframes pulso{50%{opacity:.43}}
+.h-rotulo{font-size:12px;font-weight:600;color:var(--sec);grid-column:1}
+.h-rotulo.urgente{color:var(--sol)}
+.h-titulo{font-size:15px;font-weight:600;grid-column:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h-linha{font-size:12px;color:var(--sec);grid-column:1}
+.h-barra{grid-column:1/3;height:3px;border-radius:2px;background:rgba(255,255,255,.08);margin-top:6px;overflow:hidden}
+.h-barra i{display:block;height:100%;background:var(--cor,var(--ag1))}
+.meet{grid-column:2;grid-row:1/4;width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:transparent;display:grid;place-items:center;cursor:pointer;transition:background .2s,border-color .2s}
+.meet svg{width:13px;height:13px;fill:var(--sec)}
+.meet.aceso{background:var(--cor);border-color:transparent}
+.meet.aceso svg{fill:#0E1013}
+.linha-dia{margin-top:14px}
+.linha-dia svg{display:block;width:100%;height:auto;overflow:visible}
+
+.a-topo{display:flex;justify-content:space-between;align-items:center}
+.a-titulo{font-size:12px;font-weight:600;color:var(--ter)}
+.pontos{display:flex;gap:7px}
+.ponto{width:6px;height:6px;border-radius:50%;cursor:help;border:0;padding:0}
+.aviso-fonte{margin-top:8px;font-size:12px;color:var(--critico);line-height:1.35}
+.dia{font-size:11.5px;font-weight:600;color:var(--ter);margin:10px 0 2px}
+.item{display:grid;grid-template-columns:44px 3px 1fr auto;gap:10px;align-items:center;height:28px;border-radius:6px;padding:0 6px;margin:0 -6px;cursor:pointer;transition:background .12s}
+.item:hover{background:rgba(255,255,255,.055)}
+.item .hora{font-family:var(--mono);font-size:12px;color:var(--sec)}
+.item .barra{width:3px;height:14px;border-radius:2px}
+.item .tit{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .extra{font-size:11px;color:var(--ter)}
+.item.agora{background:rgba(255,255,255,.04)}
+.vao{font-size:12px;font-style:italic;color:var(--ter);padding-left:57px;min-height:22px;display:flex;align-items:center;flex-wrap:wrap;gap:0 6px}
+.vao b{font-weight:400;color:var(--sol);font-style:normal}
+.mais{font-size:12px;color:var(--ter);margin-top:6px;cursor:pointer}
+.rodape{margin-top:10px;display:flex;justify-content:space-between;font-size:11px;color:var(--ter)}
+.rodape button{background:none;border:0;color:var(--ter);cursor:pointer;font-size:11px}
+
+.w-maquina{width:280px}
+.w-claude{width:280px}
+.grupo-t{font-size:12px;font-weight:600;color:var(--ter);margin-bottom:10px}
+.aneis{display:flex;gap:12px;justify-content:space-between}
+.anel{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:help}
+.anel svg{display:block}
+.anel small{font-size:10.5px;color:var(--ter);white-space:nowrap}
+.drives{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.drive{font-size:10.5px;color:var(--ter)}
+.drive .t{height:3px;border-radius:2px;background:var(--linha);margin-top:3px;overflow:hidden}
+.drive .t i{display:block;height:100%;background:var(--instr);opacity:.7}
+.claude{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
+.contas{display:flex;flex-direction:column;gap:6px;font-size:11.5px;color:var(--sec);min-width:0}
+.mini{display:grid;grid-template-columns:18px 1fr 30px;gap:5px;align-items:center;color:var(--ter);font-size:10.5px}
+.mini span:last-child{text-align:right;font-family:var(--mono)}
+.mini .t{height:4px;border-radius:2px;background:var(--trilho-barra);overflow:hidden}
+.mini .t i{display:block;height:100%;min-width:2px}
+.legenda-claude{font-size:11.5px;color:var(--ter);margin-top:10px}
+.legenda-claude b{font-weight:600;color:var(--sec)}
+
+/* ---------- seções de leitura ---------- */
+main{background:var(--noite)}
+.secao{max-width:1080px;margin:0 auto;padding:96px 16px 0}
+.secao>h2{font-family:var(--display);font-weight:600;font-size:clamp(28px,3.4vw,40px);letter-spacing:-.02em;line-height:1.1;max-width:24ch}
+.secao>p.lead{color:var(--sec);font-size:17px;margin-top:14px;max-width:62ch}
+
+.mapa{margin-top:36px;width:100%;border-collapse:collapse;font-size:14.5px}
+.mapa th,.mapa td{text-align:left;padding:12px 16px 12px 0;border-top:1px solid var(--linha);vertical-align:top}
+.mapa th{color:var(--ter);font-weight:600;font-size:13px}
+.mapa td{color:var(--sec)}
+.mapa td:first-child{color:var(--texto);font-weight:600;white-space:nowrap}
+
+.antes-depois{display:grid;grid-template-columns:300px 1fr;gap:48px;margin-top:40px;align-items:start}
+.velho{width:300px;padding:14px 14px 30px;border-radius:4px;background:linear-gradient(180deg,rgba(5,5,5,.82),rgba(5,5,5,0));font-family:"Trebuchet MS",var(--text)}
+.velho .vh{font-family:"Segoe UI",sans-serif;font-weight:600;font-size:46px;line-height:1}
+.velho .vd{font-size:15px;margin:4px 0 14px}
+.velho .vt{font-size:12px;color:#c8c8c8;font-weight:600;margin-top:4px}
+.velho .vi{font-size:14px;font-weight:600;margin-top:8px}
+.velho .vw{font-size:11.5px;color:#dcdcdc}
+.velho .falta{font-size:12px;color:#9a9a9a;margin-top:14px;line-height:1.4}
+.achados{display:flex;flex-direction:column;gap:28px}
+.achado{display:grid;grid-template-columns:132px 1fr;gap:20px;align-items:baseline;border-top:1px solid var(--linha);padding-top:18px}
+.achado .n{font-family:var(--display);font-weight:600;font-size:34px;letter-spacing:-.02em;color:var(--sol);line-height:1}
+.achado h3{font-size:17px;font-weight:600}
+.achado p{color:var(--sec);font-size:15px;margin-top:4px;max-width:58ch}
+
+.superficies{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:40px}
+.sup{border-radius:14px;background:#151A26;padding:22px;display:flex;flex-direction:column;gap:14px}
+.sup h3{font-size:17px;font-weight:600}
+.sup p{color:var(--sec);font-size:14.5px}
+.palco{border-radius:10px;min-height:150px;display:grid;place-items:center;padding:16px;background:linear-gradient(180deg,#1A2338,#2c2a43)}
+.aviso{width:100%;max-width:320px;border-radius:12px;background:rgba(14,16,19,.94);box-shadow:inset 0 0 0 1px var(--borda),0 12px 30px -10px #000;overflow:hidden}
+.aviso .faixa{height:3px;background:var(--ag2)}
+.aviso .corpo{padding:10px 12px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center}
+.aviso .t1{font-size:14px;font-weight:600}
+.aviso .t2{font-size:12px;color:var(--sec)}
+.aviso .entrar{grid-row:1/3;grid-column:2;background:var(--ag2);color:#0E1013;border:0;border-radius:999px;padding:5px 14px;font-weight:600;font-size:13px;cursor:pointer}
+.teclas{display:flex;gap:6px;align-items:center;color:var(--ter)}
+kbd{font-family:var(--text);font-size:15px;min-width:44px;text-align:center;padding:8px 12px;border-radius:8px;background:#232a3a;color:var(--texto);box-shadow:inset 0 -3px 0 rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.08)}
+.barra-tarefas{display:flex;gap:12px;align-items:center;padding:8px 14px;border-radius:8px;background:rgba(20,22,28,.9)}
+
+.lab{display:grid;grid-template-columns:auto 1fr;gap:48px;margin-top:40px;align-items:center}
+.lab-palco{display:flex;gap:32px;align-items:center;padding:28px;border-radius:14px;background:#151A26}
+.lab-palco figure{display:flex;flex-direction:column;align-items:center;gap:10px}
+.lab-palco figcaption{font-size:12px;color:var(--ter)}
+.lab-ctrl label{display:flex;justify-content:space-between;color:var(--sec);font-size:14px}
+.lab-ctrl output{font-family:var(--mono);color:var(--texto)}
+.lab-ctrl input[type=range]{width:100%;margin:10px 0;accent-color:var(--sol)}
+.regras{margin-top:18px;display:flex;flex-direction:column;gap:8px;color:var(--sec);font-size:14.5px;max-width:56ch}
+.regras li{list-style:none;padding-left:18px;position:relative}
+.regras li::before{content:"";position:absolute;left:0;top:.62em;width:8px;height:2px;background:var(--ter)}
+
+.fases{margin-top:40px;display:grid}
+.fase{display:grid;grid-template-columns:72px 1fr 150px;gap:24px;padding:22px 0;border-top:1px solid var(--linha);align-items:baseline}
+.fase .num{font-family:var(--display);font-size:28px;font-weight:600;color:var(--ter)}
+.fase.agora-f .num{color:var(--sol)}
+.fase h3{font-size:17px;font-weight:600}
+.fase p{color:var(--sec);font-size:14.5px;margin-top:4px;max-width:64ch}
+.fase .esf{font-size:13px;color:var(--ter);text-align:right}
+
+.tec{margin-top:40px;width:100%;border-collapse:collapse;font-size:14.5px}
+.tec th,.tec td{text-align:left;padding:12px 14px 12px 0;border-top:1px solid var(--linha);vertical-align:top}
+.tec th{color:var(--ter);font-weight:600;font-size:13px}
+.tec td:first-child{font-weight:600;white-space:nowrap}
+.tec td{color:var(--sec)}
+.tec .sim{color:var(--texto)}
+
+.decisoes{margin-top:36px;display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.decisao{border-radius:12px;border:1px solid var(--linha);padding:18px}
+.decisao.feita{border-color:rgba(48,164,108,.35)}
+.decisao h3{font-size:15.5px;font-weight:600}
+.decisao p{color:var(--sec);font-size:14px;margin-top:6px}
+.decisao .rec{color:var(--sol);font-size:13px;margin-top:10px}
+.decisao.feita .rec{color:var(--ok)}
+footer{max-width:1080px;margin:0 auto;padding:96px 16px 64px;color:var(--ter);font-size:13px}
+
+@media (max-width:980px){
+  .cena-grade{grid-template-columns:minmax(0,1fr);gap:40px}
+  .cena-grade>*{min-width:0}
+  .coluna{order:2}
+  .antes-depois,.lab{grid-template-columns:1fr}
+  .superficies{grid-template-columns:1fr}
+  .fase{grid-template-columns:48px 1fr}
+  .fase .esf{grid-column:2;text-align:left}
+  .decisoes{grid-template-columns:1fr}
+  .mapa td:first-child{white-space:normal}
+}
+@media (max-width:420px){
+  .widget{padding:14px}
+  .relogio{font-size:52px}
+  .w-maquina,.w-claude{width:100%}
+  .achado{grid-template-columns:1fr;gap:6px}
+  .velho{width:100%}
+  .lab-palco{flex-direction:column}
+  .tec td:first-child{white-space:normal}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<header class="cena">
+  <div class="estrelas" aria-hidden="true"></div>
+  <div class="cena-grade">
+    <div class="coluna" aria-label="Widgets da agenda, na posição do skin de hoje">
+      <section class="widget w-relogio" data-nome="Horizonte\Relogio" aria-label="Widget Relógio">
+        <div class="relogio" id="relogio">14:37</div>
+        <div class="data"><span>sexta, 2 de outubro</span><span class="chip" title="agenda feriados">feriado seg 12/10</span></div>
+      </section>
+      <section class="widget w-dia" data-nome="Horizonte\Dia" aria-label="Widget Dia">
+        <div class="heroi" id="heroi"></div>
+        <div class="linha-dia" id="linhaDia"></div>
+      </section>
+      <section class="widget w-agenda" data-nome="Horizonte\Agenda" aria-label="Widget Agenda">
+        <div class="a-topo"><span class="a-titulo">Próximos 14 dias</span><div class="pontos" id="pontos"></div></div>
+        <div id="avisoFonte"></div>
+        <div id="lista"></div>
+        <div class="rodape">
+          <span>atualizada há 3 min</span>
+          <button type="button" id="cadeado" aria-pressed="false" title="Modo privado: esconde os títulos para compartilhar a tela">🔒 privado</button>
+        </div>
+      </section>
+    </div>
+
+    <div>
+      <div class="manifesto">
+        <h1>Horizonte<span>o dia, a máquina e o Claude numa olhada só</span></h1>
+        <p>Um pacote de widgets para o desktop. Cada um responde uma pergunta: o que vem agora, se o PC está engasgando, se cabe mais uma sessão de Claude. Cada um fica onde você quiser.</p>
+      </div>
+      <div class="controles">
+        <label for="hora">Arraste o horário do dia <output id="horaOut">14:37</output></label>
+        <input type="range" id="hora" min="420" max="1260" step="1" value="877" aria-describedby="horaDica">
+        <div class="dica" id="horaDica">O cartão do widget Dia muda sozinho entre próximo, agora e livre. Às 14:59 a janela de 5h do Claude renova.</div>
+        <div class="alternar">
+          <button type="button" data-cena="normal" aria-pressed="true">Dia normal</button>
+          <button type="button" data-cena="carga" aria-pressed="false">PC sob carga</button>
+          <button type="button" data-cena="velho" aria-pressed="false">Bandeja sem medição nova</button>
+          <button type="button" data-cena="erro" aria-pressed="false">Agenda corporativa falhando</button>
+        </div>
+      </div>
+      <div class="par">
+        <section class="widget w-maquina" data-nome="Horizonte\Maquina" aria-label="Widget Máquina">
+          <div class="grupo-t">Máquina</div>
+          <div class="aneis" id="aneisSistema"></div>
+          <div class="drives" id="drives"></div>
+        </section>
+        <section class="widget w-claude" data-nome="Horizonte\Claude" aria-label="Widget Claude">
+          <div class="grupo-t">Claude</div>
+          <div class="claude" id="claude"></div>
+          <div class="legenda-claude" id="legendaClaude"></div>
+        </section>
+      </div>
+      <p class="solto" id="solto">No computador, dá para arrastar os widgets como no Rainmeter. <button type="button" id="restaurar">Voltar ao layout padrão</button></p>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="secao">
+    <h2>Um pacote, vários widgets</h2>
+    <p class="lead">Cada widget é uma config do Rainmeter: liga, desliga e muda de monitor sozinho. Todos dividem as mesmas cores, fontes e código, então mudar o tema muda o pacote inteiro.</p>
+    <table class="mapa">
+      <thead><tr><th>Widget</th><th>Mostra</th><th>Onde fica</th></tr></thead>
+      <tbody>
+        <tr><td>Relógio</td><td>hora, data e o próximo feriado</td><td>onde o skin de hoje está</td></tr>
+        <tr><td>Dia</td><td>agora, próximo ou livre, e a linha do dia</td><td>logo abaixo</td></tr>
+        <tr><td>Agenda</td><td>14 dias das agendas pessoal, corporativa e feriados, com os horários livres</td><td>abaixo do Dia</td></tr>
+        <tr><td>Máquina</td><td>CPU, RAM, GPU, espaço livre do SSD e cotas do Google Drive</td><td>você escolhe</td></tr>
+        <tr><td>Claude</td><td>janela de 5h da conta ativa e as outras contas</td><td>você escolhe</td></tr>
+        <tr><td>Aviso</td><td>cartão com Entrar, 5 min antes da reunião</td><td>aparece sozinho no canto</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="secao">
+    <h2>Por que não é só pintar o widget de hoje</h2>
+    <p class="lead">A auditoria leu as 1.201 linhas do leitor e baixou os feeds. O widget atual é sem graça e, pior, mostra uma agenda incompleta sem avisar.</p>
+    <div class="antes-depois">
+      <div class="velho" aria-label="Como o widget aparece hoje">
+        <div class="vh">14:37</div>
+        <div class="vd">Friday, October 02</div>
+        <div class="vt">UPCOMING EVENTS</div>
+        <div class="vi">Dentista</div><div class="vw">17:30 - Today</div>
+        <div class="vi">Comitê semanal</div><div class="vw">10:00 - 05/10</div>
+        <div class="falta">faltam o 1:1 (agenda corporativa com endereço expirado), a daily e o aniversário (recorrentes)</div>
+      </div>
+      <div class="achados">
+        <div class="achado"><div class="n">404</div><div><h3>Uma agenda inteira sumiu</h3><p>O endereço da agenda corporativa tinha expirado e o leitor descartava o erro calado. O endereço já foi regerado; o defeito de esconder o erro continua no código.</p></div></div>
+        <div class="achado"><div class="n">6 séries</div><div><h3>A daily nunca aparece</h3><p>O arquivo .ics do Google não expande recorrência. As 6 séries ativas (diária, semanais, mensal, aniversários) têm data de início no passado e caem no filtro. Os parâmetros “singleevents” na URL são da API e o .ics ignora.</p></div></div>
+        <div class="achado"><div class="n">520 MB</div><div><h3>Por dia, para mostrar 8 linhas</h3><p>Três downloads a cada 60 s, inclusive o calendário de feriados. Com 15 min nas agendas e 1 vez por dia nos feriados, cai para uns 25 MB/dia.</p></div></div>
+        <div class="achado"><div class="n">texto puro</div><div><h3>Os endereços secretos estão no skin</h3><p>No pacote novo eles moram no Gerenciador de Credenciais do Windows. O código só conhece os apelidos pessoal, corporativo e feriados.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <h2>Fora do desktop também</h2>
+    <p class="lead">Widget de desktop some quando tudo está maximizado. Por isso o pacote aparece também onde você está trabalhando, sempre lendo os mesmos dados.</p>
+    <div class="superficies">
+      <article class="sup">
+        <div class="palco">
+          <div class="aviso" role="img" aria-label="Aviso de reunião">
+            <div class="faixa"></div>
+            <div class="corpo">
+              <div class="t1">1:1 semanal</div>
+              <div class="t2">em 5 min, 15:00 às 15:30</div>
+              <button type="button" class="entrar">Entrar</button>
+            </div>
+          </div>
+        </div>
+        <h3>Aviso de reunião</h3>
+        <p>Cinco minutos antes, um cartão discreto no canto da tela com o botão para entrar no Meet. Some sozinho em 60 s e aparece uma vez por evento.</p>
+      </article>
+      <article class="sup">
+        <div class="palco"><div class="teclas"><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd></div></div>
+        <h3>Entrar na próxima reunião</h3>
+        <p>De qualquer lugar, uma tecla abre o link da reunião em andamento ou da próxima em até 30 min. Sem reunião, abre o Google Agenda no dia.</p>
+      </article>
+      <article class="sup">
+        <div class="palco"><div class="barra-tarefas" id="bandejaDemo" aria-label="Ícone da bandeja em tamanho real"></div></div>
+        <h3>Bandeja, como hoje</h3>
+        <p>O ícone do claude-usage-tray continua sendo quem mede o Claude. O widget só lê o que ele grava. No futuro, um app próprio junta a bandeja e o Claude Switch.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="secao">
+    <h2>O anel do Claude fala a língua da bandeja</h2>
+    <p class="lead">As regras já medidas no tray valem aqui sem exceção. Arraste para ver o zoom da reta final.</p>
+    <div class="lab">
+      <div class="lab-palco">
+        <figure><div id="labGrande"></div><figcaption>no widget</figcaption></figure>
+        <figure><div id="labPequeno"></div><figcaption>na bandeja, 16 px e ampliado</figcaption></figure>
+      </div>
+      <div class="lab-ctrl">
+        <label for="pct">Uso da janela de 5h <output id="pctOut">71%</output></label>
+        <input type="range" id="pct" min="0" max="100" value="71">
+        <div class="alternar"><button type="button" id="labVelho" aria-pressed="false">Medição antiga</button></div>
+        <ul class="regras">
+          <li>O anel é a janela de 5h da conta ativa, nunca a pior janela.</li>
+          <li>Verde até 59%, âmbar de 60%, vermelho de 85%.</li>
+          <li>De 95% em diante a faixa 95→100 vira a volta inteira, e um ponto avisa que a escala mudou.</li>
+          <li>Medição antiga fica cinza com a idade ao lado. Número velho nunca aparece como atual.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <h2>Onde isso roda</h2>
+    <p class="lead">Foram pesquisados 28 hospedeiros, com fonte. O requisito que mais elimina candidatos é continuar visível quando você aperta Win+D.</p>
+    <table class="tec">
+      <thead><tr><th>Opção</th><th>Papel</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td>Rainmeter 4.5</td><td class="sim">Base agora</td><td>Único que hoje sobrevive ao Win+D, aceita clique, lê arquivo local e mede disco nativamente, com uns 20 MB de RAM. Perde blur real e letter-spacing.</td></tr>
+        <tr><td>App próprio (Tauri 2)</td><td class="sim">Norte</td><td>Junta widgets, avisos e bandeja num executável. Entra quando o Rainmeter virar teto e um teste provar que ele fica visível no Win+D com até 150 MB.</td></tr>
+        <tr><td>Rainmeter + WebView2</td><td>Plano B visual</td><td>HTML dentro do Rainmeter, mas o plugin tem uma release só e pode custar de 80 a 170 MB.</td></tr>
+        <tr><td>Zebar, YASB, Seelen, Lively</td><td>Descartados</td><td>Sem clique atravessando, só barra, escondem no Win+D ou viram o papel de parede.</td></tr>
+      </tbody>
+    </table>
+    <p class="lead" style="margin-top:20px">O que faz nada se perder: dados e desenho ficam separados por dois arquivos, a agenda gerada por um helper e o snapshot gravado pela bandeja. Se um dia o Rainmeter sair, o app novo lê os mesmos arquivos.</p>
+  </section>
+
+  <section class="secao">
+    <h2>O caminho, em fases que se pagam sozinhas</h2>
+    <div class="fases">
+      <div class="fase agora-f"><div class="num">0</div><div><h3>Estancar o skin de hoje</h3><p>Só o que vale até o pacote chegar: rede de 520 para uns 25 MB/dia, endereços secretos fora do skin, não travar com uma agenda fora do ar, layout salvo e illustro removido.</p></div><div class="esf">1 a 2 h</div></div>
+      <div class="fase"><div class="num">1</div><div><h3>Agenda de verdade</h3><p>Helper que expande recorrência, funciona offline, na bateria e na rede corporativa. A daily volta a aparecer ainda no skin antigo.</p></div><div class="esf">1 a 1,5 dia</div></div>
+      <div class="fase"><div class="num">2</div><div><h3>Pacote Horizonte</h3><p>Relógio, Dia, Agenda, Máquina e Claude como widgets separados, modo privado, escala certa nos dois monitores e a versão 0.1 publicada como .rmskin.</p></div><div class="esf">2 a 3 dias</div></div>
+      <div class="fase"><div class="num">3</div><div><h3>Fora do desktop</h3><p>Aviso de reunião, Ctrl+Alt+M, quem está pesando no PC, disco em dias de cobertura, autonomia do Claude.</p></div><div class="esf">1,5 a 2 dias</div></div>
+      <div class="fase"><div class="num">4</div><div><h3>Experimentos com critério de saída</h3><p>Fio do dia sobre a barra de tarefas, vidro fosco, fundo amostrado do papel de parede. Cada um sai se incomodar em uma semana.</p></div><div class="esf">1 dia</div></div>
+      <div class="fase"><div class="num">5</div><div><h3>App próprio</h3><p>Só com o portão aberto. Modo expandido com a semana, paleta de comandos, bandeja e Claude Switch num executável só.</p></div><div class="esf">a decidir</div></div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <h2>Decisões</h2>
+    <div class="decisoes">
+      <div class="decisao feita"><h3>Forma</h3><p>Pacote novo com vários widgets separados, não um widget único.</p><div class="rec">decidido em 02/10</div></div>
+      <div class="decisao feita"><h3>Agendas e apelidos</h3><p>Pessoal, corporativa (endereço expirado, já regerado) e feriados, que é pública.</p><div class="rec">decidido em 02/10</div></div>
+      <div class="decisao feita"><h3>Repositório e posição</h3><p>Repositório público na conta pessoal. A coluna da agenda fica onde o skin de hoje está.</p><div class="rec">decidido em 02/10</div></div>
+      <div class="decisao"><h3>Apelidos das contas Claude e dos drives</h3><p>Até decidir, as contas aparecem pelo número do cswap e os drives pela letra. E-mail nunca aparece.</p><div class="rec">em aberto</div></div>
+    </div>
+  </section>
+</main>
+
+<footer>Mockup de 02/10/2026. Eventos são ilustrativos. Os números de CPU, RAM, disco e Claude vêm da máquina no momento da análise. Plano completo em roadmap/2026-10-02-horizonte-visao-e-plano.md.</footer>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var reduz = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var estado = { min: 877, privado: false, cena: "normal" };
+  var RESET = 14*60+59; // ResetsAt 17:59:59Z da janela de 5h = 14:59 em Brasília
+
+  var hoje = [
+    { ini: 540, fim: 555, t: "Daily produto", cor: "--ag2", fonte: "corporativo", meet: true, rec: true },
+    { ini: 630, fim: 690, t: "Revisão do BI", cor: "--ag2", fonte: "corporativo", meet: true },
+    { ini: 900, fim: 930, t: "1:1 semanal", cor: "--ag2", fonte: "corporativo", meet: true, rec: true },
+    { ini: 1050, fim: 1110, t: "Dentista", cor: "--ag1", fonte: "pessoal", meet: false }
+  ];
+  var depois = [
+    { dia: "amanhã, sábado", itens: [ { h: "dia", t: "Aniversário", cor: "--ag1", fonte: "pessoal", rec: true } ] },
+    { dia: "segunda, 5/10", itens: [
+      { h: "09:00", t: "Daily produto", cor: "--ag2", fonte: "corporativo", rec: true, extra: "seg a sex" },
+      { h: "10:00", t: "Comitê semanal", cor: "--ag2", fonte: "corporativo", rec: true } ] }
+  ];
+
+  function cor(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function hhmm(m){ m = Math.round(m); return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"); }
+  function dur(m){ var h = Math.floor(m/60), r = m%60; return h ? (h+"h"+(r? String(r).padStart(2,"0") : "")) : r+" min"; }
+  function titulo(t){ return estado.privado ? "Compromisso" : t; }
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
+  function visivel(e){ return !(estado.cena === "erro" && e.fonte === "corporativo"); }
+
+  /* ---------- anel genérico (geometria do tray: 12h, horário, ponta redonda) ---------- */
+  function anel(o){
+    var s = o.tam, tr = o.traco, r = (s - tr)/2 - (o.folga||0), c = s/2, circ = 2*Math.PI*r;
+    var frac = Math.max(0, Math.min(1, o.frac));
+    if (frac > 0 && frac < 8/360) frac = 8/360;
+    var svg = '<svg width="'+s+'" height="'+s+'" viewBox="0 0 '+s+' '+s+'" style="overflow:visible" aria-hidden="true">';
+    svg += '<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+o.trilho+'" stroke-width="'+tr+'"/>';
+    if (frac >= 1) {
+      svg += '<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+o.cor+'" stroke-width="'+tr+'"/>';
+    } else if (frac > 0) {
+      svg += '<circle class="arco" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+o.cor+'" stroke-width="'+tr+'" stroke-linecap="round" stroke-dasharray="'+(circ*frac).toFixed(2)+' '+circ.toFixed(2)+'" transform="rotate(-90 '+c+' '+c+')"/>';
+    }
+    if (o.ponto) {
+      if (o.pontoCentro) svg += '<circle cx="'+c+'" cy="'+c+'" r="'+(s*0.12)+'" fill="'+o.cor+'"/>';
+      else svg += '<circle cx="'+c+'" cy="-3" r="2.5" fill="'+o.cor+'"/>';
+    }
+    if (o.centro != null) {
+      svg += '<text x="'+c+'" y="'+(c+0.5)+'" text-anchor="middle" dominant-baseline="central" fill="'+(o.corTexto||cor("--texto"))+'" style="font:600 '+o.fonte+'px var(--display);font-variant-numeric:tabular-nums">'+esc(o.centro)+'</text>';
+    }
+    return svg + '</svg>';
+  }
+  function corClaude(p, velho){ if (velho) return cor("--velho"); return p >= 85 ? cor("--critico") : p >= 60 ? cor("--alerta") : cor("--ok"); }
+  function fracClaude(p){ return p >= 95 ? (p-95)/5 : p/100; }
+
+  /* ---------- widget Agenda: saúde das fontes ---------- */
+  function pontos(){
+    var erro = estado.cena === "erro";
+    var lista = [
+      ["pessoal: atualizada há 3 min", cor("--ag1")],
+      [erro ? "corporativo: o Google respondeu 404 desde 13:05. Regere o endereço secreto e rode agenda-sync configurar." : "corporativo: atualizada há 3 min", erro ? cor("--critico") : cor("--ag2")],
+      ["feriados: atualizada hoje", cor("--fer")]
+    ];
+    $("pontos").innerHTML = lista.map(function(p){ return '<button type="button" class="ponto" style="background:'+p[1]+'" title="'+esc(p[0])+'" aria-label="'+esc(p[0])+'"></button>'; }).join("");
+    $("avisoFonte").innerHTML = erro ? '<div class="aviso-fonte">Agenda corporativa fora do ar (404). Os compromissos dela não aparecem até o endereço ser regerado.</div>' : '';
+  }
+
+  /* ---------- widget Dia: cartão herói ---------- */
+  var papelAnterior = null;
+  function heroi(){
+    var m = estado.min, h = $("heroi"), agora = null, prox = null;
+    hoje.filter(visivel).forEach(function(e){ if (m >= e.ini && m < e.fim) agora = e; if (!prox && e.ini > m) prox = e; });
+    var html, c, papel;
+    var icone = '<svg viewBox="0 0 16 16"><path d="M1 4.5A1.5 1.5 0 0 1 2.5 3h7A1.5 1.5 0 0 1 11 4.5v1.3l3.2-2.1a.5.5 0 0 1 .8.4v7.8a.5.5 0 0 1-.8.4L11 10.2v1.3A1.5 1.5 0 0 1 9.5 13h-7A1.5 1.5 0 0 1 1 11.5z"/></svg>';
+    if (agora) {
+      papel = "agora"; c = agora.cor;
+      var pct = (m - agora.ini)/(agora.fim - agora.ini)*100;
+      var seguinte = (agora.fim - m <= 5 && prox && prox.ini - agora.fim <= 15) ? ', em seguida '+esc(titulo(prox.t)) : '';
+      html = '<div class="h-rotulo">Agora</div><div class="h-titulo">'+esc(titulo(agora.t))+'</div>'+
+        '<div class="h-linha">termina '+hhmm(agora.fim)+', faltam '+dur(agora.fim-m)+seguinte+'</div>'+
+        (agora.meet ? '<button type="button" class="meet aceso" aria-label="Entrar no Meet">'+icone+'</button>' : '')+
+        '<div class="h-barra"><i style="width:'+pct.toFixed(1)+'%"></i></div>';
+    } else if (prox && prox.ini - m <= 720) {
+      papel = "proximo"; c = prox.cor;
+      var falta = prox.ini - m, urg = falta <= 15;
+      html = '<div class="h-rotulo'+(urg?' urgente':'')+'">Próximo, '+(falta <= 60 ? 'em '+dur(falta) : 'às '+hhmm(prox.ini))+'</div>'+
+        '<div class="h-titulo">'+esc(titulo(prox.t))+'</div>'+
+        '<div class="h-linha">'+hhmm(prox.ini)+' às '+hhmm(prox.fim)+(prox.meet ? ', Google Meet' : ', presencial')+'</div>'+
+        (prox.meet ? '<button type="button" class="meet'+(falta <= 10 ? ' aceso':'')+'" aria-label="Entrar no Meet">'+icone+'</button>' : '');
+    } else {
+      papel = "livre"; c = "--fer";
+      var ult = hoje.filter(visivel).slice(-1)[0];
+      html = '<div class="h-rotulo">Livre</div><div class="h-titulo">dia livre a partir de '+hhmm(Math.max(ult ? ult.fim : m, m))+'</div>'+
+        '<div class="h-linha">segunda 09:00, '+esc(titulo("Daily produto"))+'</div>';
+    }
+    h.style.setProperty("--cor", "var("+c+")");
+    h.innerHTML = html;
+    if (papel === "agora" && papelAnterior === "proximo" && !reduz) { h.classList.remove("pulsa"); void h.offsetWidth; h.classList.add("pulsa"); }
+    papelAnterior = papel;
+  }
+
+  /* ---------- widget Dia: linha do dia 07–21h ---------- */
+  function linhaDia(){
+    var W = 336, H = 30, x = function(min){ return (min - 420)/840*W; }, m = estado.min;
+    var svg = '<svg viewBox="0 -8 '+W+' '+(H+8)+'" role="img" aria-label="Linha do dia das 7h às 21h">';
+    svg += '<rect x="0" y="4" width="'+W+'" height="6" rx="3" fill="'+cor("--linha")+'"/>';
+    hoje.filter(visivel).forEach(function(e){
+      var a = m >= e.fim ? .3 : (m >= e.ini ? 1 : .78);
+      svg += '<rect x="'+x(e.ini).toFixed(1)+'" y="4" width="'+Math.max(3, x(e.fim)-x(e.ini)).toFixed(1)+'" height="6" rx="3" fill="'+cor(e.cor)+'" opacity="'+a+'"><title>'+esc(titulo(e.t))+' '+hhmm(e.ini)+' às '+hhmm(e.fim)+'</title></rect>';
+    });
+    svg += '<g><line x1="'+x(RESET)+'" x2="'+x(RESET)+'" y1="0" y2="14" stroke="'+cor("--ok")+'" stroke-width="1" stroke-dasharray="2 2"/><text x="'+x(RESET)+'" y="-1" text-anchor="middle" fill="'+cor("--ok")+'" style="font:10px var(--text)">♻</text><title>a janela de 5h do Claude renova às 14:59</title></g>';
+    [7,10,13,16,19,21].forEach(function(hh){ svg += '<text x="'+x(hh*60)+'" y="'+(H-1)+'" text-anchor="'+(hh===7?'start':hh===21?'end':'middle')+'" fill="'+cor("--ter")+'" style="font:10px var(--mono)">'+String(hh).padStart(2,"0")+'</text>'; });
+    svg += '<rect x="'+(x(m)-1)+'" y="-2" width="2" height="18" rx="1" fill="'+cor("--sol")+'"/><circle cx="'+x(m)+'" cy="-3" r="2.5" fill="'+cor("--sol")+'"/>';
+    $("linhaDia").innerHTML = svg + '</svg>';
+  }
+
+  /* ---------- widget Agenda: lista ---------- */
+  function linhaItem(h, t, c, extra, classe){
+    return '<div class="item'+(classe?' '+classe:'')+'" tabindex="0"><span class="hora">'+h+'</span><span class="barra" style="background:var('+c+')"></span><span class="tit">'+esc(t)+'</span><span class="extra">'+(extra||'')+'</span></div>';
+  }
+  function lista(){
+    var m = estado.min, html = '<div class="dia">Hoje</div>', resto = hoje.filter(visivel).filter(function(e){ return e.fim > m; }), cursor = m;
+    resto.forEach(function(e){
+      var a = Math.max(cursor, m), livre = e.ini - a;
+      if (livre >= 45) {
+        var cabe = RESET >= a && RESET < e.ini && livre >= 90;
+        html += '<div class="vao">livre '+hhmm(a)+' às '+hhmm(e.ini)+', '+dur(livre)+(cabe ? '<b>sessão longa de Claude cabe aqui</b>':'')+'</div>';
+      }
+      html += linhaItem(hhmm(e.ini), titulo(e.t)+(e.rec?' ♻':''), e.cor, e.ini <= m ? 'agora' : dur(e.fim-e.ini), e.ini <= m ? 'agora' : '');
+      cursor = e.fim;
+    });
+    if (!resto.length) html += '<div class="vao">nada mais hoje</div>';
+    depois.forEach(function(d){
+      var itens = d.itens.filter(visivel);
+      if (!itens.length) return;
+      html += '<div class="dia">'+d.dia+'</div>';
+      itens.forEach(function(i){ html += linhaItem(i.h, titulo(i.t)+(i.rec?' ♻':''), i.cor, i.extra); });
+    });
+    html += '<div class="mais" tabindex="0">mais 6 eventos até 16/10</div>';
+    $("lista").innerHTML = html;
+  }
+
+  /* ---------- widget Máquina ---------- */
+  function sistema(){
+    var carga = estado.cena === "carga";
+    var cpu = carga ? 96 : 23, ram = carga ? 88 : 61, gpu = carga ? 41 : 12;
+    var corSis = function(v, a, r){ return v >= r ? cor("--critico") : v >= a ? cor("--alerta") : cor("--instr"); };
+    var itens = [
+      { v: cpu, txt: cpu, leg: "CPU", tip: carga ? "CPU 96% há 40 s, mais pesado: chrome 31%" : "CPU 23%, mais pesado: chrome 8%", c: corSis(cpu,85,95) },
+      { v: ram, txt: ram, leg: carga ? "RAM 13,5G" : "RAM 9,3G", tip: carga ? "13,5 de 15,3 GB, maior: msedge 3,1 GB" : "9,3 de 15,3 GB, maior: msedge 1,9 GB", c: corSis(ram,85,93) },
+      { v: gpu, txt: gpu, leg: "GPU", tip: "GPU integrada", c: corSis(gpu,85,95) },
+      { v: 83, txt: 80, leg: "C: livre", tip: "80 de 476 GB livres. No ritmo de 30 dias, cobertura de uns 200 dias. Downloads tem 12 GB parados há mais de 60 dias.", c: cor("--instr") }
+    ];
+    $("aneisSistema").innerHTML = itens.map(function(i){
+      return '<div class="anel" title="'+esc(i.tip)+'">'+anel({ tam: 50, traco: 4.5, frac: i.v/100, cor: i.c, trilho: cor("--linha"), centro: i.txt, fonte: 13.5 })+'<small>'+i.leg+'</small></div>';
+    }).join("");
+    var drives = [ ["drive G", 26, 100], ["drive I", 11, 15] ];
+    $("drives").innerHTML = drives.map(function(d){
+      return '<div class="drive" title="cota do Google Drive para desktop; o rótulo do volume tem o e-mail e nunca aparece">'+d[0]+', '+d[1]+' de '+d[2]+' GB livres<div class="t"><i style="width:'+((1-d[1]/d[2])*100)+'%"></i></div></div>';
+    }).join("");
+  }
+
+  /* ---------- widget Claude ---------- */
+  function claude(){
+    var m = estado.min, velho = estado.cena === "velho";
+    var renovou = m >= RESET;
+    var p5 = renovou ? 4 : 71, p7 = 56;
+    var c = corClaude(p5, velho);
+    var g = anel({ tam: 64, traco: 10.9, frac: fracClaude(p5), cor: c, trilho: cor("--trilho-claude"), centro: p5, fonte: 17, ponto: p5 >= 95, corTexto: velho ? cor("--sec") : null });
+    var mini = function(rot, v, extra){
+      var cc = velho ? cor("--velho") : v >= 85 ? cor("--critico") : v >= 60 ? cor("--alerta") : cor("--ok");
+      return '<div class="mini"><span>'+rot+'</span><span class="t"><i style="width:'+v+'%;background:'+cc+'"></i></span><span>'+(extra||v+'%')+'</span></div>';
+    };
+    $("claude").innerHTML =
+      '<div class="anel" title="conta 4: 5h '+p5+'%, 7d '+p7+'%, Fable 73%">'+g+'</div>'+
+      '<div class="contas"><div>conta 6</div>'+mini("5h", 0, "—")+mini("7d", 90)+'</div>';
+    var leg;
+    if (velho) leg = '<b>5h, conta 4</b>, medição de 6 min: a bandeja está viva, sem dado novo';
+    else if (renovou) leg = '<b>5h, conta 4</b>, renovado às 14:59';
+    else leg = '<b>5h, conta 4</b>, renova 14:59 (em '+dur(RESET-m)+')';
+    $("legendaClaude").innerHTML = leg;
+  }
+
+  function relogio(){ $("relogio").textContent = hhmm(estado.min); $("horaOut").textContent = hhmm(estado.min); }
+  function tudo(){ relogio(); pontos(); heroi(); linhaDia(); lista(); sistema(); claude(); }
+
+  $("hora").addEventListener("input", function(e){ estado.min = +e.target.value; tudo(); });
+  document.querySelectorAll("[data-cena]").forEach(function(b){
+    b.addEventListener("click", function(){
+      estado.cena = b.getAttribute("data-cena");
+      document.querySelectorAll("[data-cena]").forEach(function(x){ x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+      tudo();
+    });
+  });
+  $("cadeado").addEventListener("click", function(){
+    estado.privado = !estado.privado;
+    this.setAttribute("aria-pressed", String(estado.privado));
+    this.style.color = estado.privado ? "var(--sol)" : "";
+    tudo();
+  });
+
+  /* ---------- arrastar widgets (só com mouse; no toque a página rola) ---------- */
+  var widgets = Array.prototype.slice.call(document.querySelectorAll(".cena .widget"));
+  var podeArrastar = window.matchMedia && matchMedia("(pointer: fine)").matches;
+  if (!podeArrastar) $("solto").hidden = true;
+  widgets.forEach(function(w){
+    w.title = w.getAttribute("data-nome");
+    if (!podeArrastar) return;
+    w.classList.add("arrastavel");
+    var ini = null;
+    w.addEventListener("pointerdown", function(e){
+      if (e.button !== 0 || e.target.closest("button, input, .item, .mais, .ponto")) return;
+      var dx = +(w.dataset.dx||0), dy = +(w.dataset.dy||0);
+      ini = { x: e.clientX - dx, y: e.clientY - dy };
+      w.setPointerCapture(e.pointerId); w.classList.add("arrastando");
+    });
+    w.addEventListener("pointermove", function(e){
+      if (!ini) return;
+      var dx = e.clientX - ini.x, dy = e.clientY - ini.y;
+      w.dataset.dx = dx; w.dataset.dy = dy;
+      w.style.transform = "translate("+dx+"px,"+dy+"px)";
+    });
+    var solta = function(){ ini = null; w.classList.remove("arrastando"); };
+    w.addEventListener("pointerup", solta); w.addEventListener("pointercancel", solta);
+  });
+  $("restaurar").addEventListener("click", function(){
+    widgets.forEach(function(w){ w.dataset.dx = 0; w.dataset.dy = 0; w.style.transition = reduz ? "" : "transform 240ms cubic-bezier(.33,1,.68,1)"; w.style.transform = ""; setTimeout(function(){ w.style.transition = ""; }, 260); });
+  });
+
+  /* ---------- laboratório do anel ---------- */
+  var lab = { p: 71, velho: false };
+  function bandeja16(p, velho, escala){
+    return anel({ tam: 16*escala, traco: 16*escala*0.17, folga: 16*escala*0.06, frac: fracClaude(p), cor: corClaude(p, velho), trilho: "rgba(150,150,160,.47)", ponto: p >= 95, pontoCentro: true });
+  }
+  function desenhaLab(){
+    var p = lab.p, c = corClaude(p, lab.velho);
+    $("pctOut").textContent = p + "%";
+    $("labGrande").innerHTML = anel({ tam: 132, traco: 22, frac: fracClaude(p), cor: c, trilho: cor("--trilho-claude"), centro: p, fonte: 34, ponto: p >= 95, corTexto: lab.velho ? cor("--sec") : null }) +
+      '<div style="text-align:center;font-size:12px;color:var(--ter);margin-top:8px">'+(lab.velho ? 'medição de 8h atrás' : (p >= 95 ? 'escala da reta final' : 'agora'))+'</div>';
+    $("labPequeno").innerHTML = '<div style="display:flex;gap:14px;align-items:end">'+bandeja16(p, lab.velho, 1)+bandeja16(p, lab.velho, 4)+'</div>';
+  }
+  $("pct").addEventListener("input", function(e){ lab.p = +e.target.value; desenhaLab(); });
+  $("labVelho").addEventListener("click", function(){ lab.velho = !lab.velho; this.setAttribute("aria-pressed", String(lab.velho)); desenhaLab(); });
+  $("bandejaDemo").innerHTML = bandeja16(71, false, 1) + '<span style="font-size:12px;color:var(--sec)">14:37</span>';
+
+  tudo(); desenhaLab();
+
+  /* varredura única dos anéis ao carregar (360 ms, ease-out) */
+  if (!reduz) {
+    document.querySelectorAll(".cena .arco").forEach(function(a, i){
+      var alvo = a.getAttribute("stroke-dasharray").split(" ");
+      a.style.strokeDasharray = "0 " + alvo[1];
+      setTimeout(function(){
+        a.style.transition = "stroke-dasharray 360ms cubic-bezier(.33,1,.68,1)";
+        a.style.strokeDasharray = alvo[0] + " " + alvo[1];
+      }, 120 + i*40);
+    });
+  }
+})();
+</script>
+</body>
+</html>
