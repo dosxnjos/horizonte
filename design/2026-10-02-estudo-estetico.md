@@ -99,9 +99,31 @@ widget de 400×300. Meta:
 Se o pico passar disso, ou se o movimento sem blur parecer "morto" ao dono, a
 rota é o plugin WebView2 dentro do Rainmeter.
 
+## Decisão: Expressivo (Gabriel, 02/10)
+
+> "gostei muito da aurora, mas pensando muito, quem ganhou meu coração foi a
+> expressivo"
+
+A escolha vai contra a recomendação dos juízes, que preferiam o Instrumento. Vale
+o gosto do dono: o Expressivo ficou em 2º, com viabilidade 7 no Rainmeter. A base
+de trabalho é [`horizonte-v1.html`](horizonte-v1.html), que parte do Expressivo
+com o conteúdo já decidido:
+- só o disco C:, com o rótulo "Windows";
+- contas Claude chamadas `produto` e `dados`.
+
+A [direção original](direcoes/expressivo.html) fica intacta como registro do
+estudo.
+
+**Pontos fracos do Expressivo apontados pelos juízes, a resolver na v1:**
+- **Cara de Google:** é a assinatura do Material 3, e o nome "Horizonte" não
+  significa nada visualmente. Candidato a resolver: a luz da hora do dia, que veio
+  do Vidro e era o enxerto mais citado.
+- **Contador antigo:** o número passava pelos 9 dígitos ao ir de 9 para 0. Ainda
+  precisa conferir se a revisão corrigiu.
+
 ## Decisões em aberto (dono: Gabriel)
 
-1. **Direção:** o híbrido recomendado, ou outra das quatro.
+1. ~~Direção~~: Expressivo. Em aberto: o que da Aurora entra nele.
 2. **Cor do AGORA:** o âmbar colide com o anel do Claude em âmbar. Os juízes
    recomendam azul-aço para o AGORA, deixando âmbar e vermelho só para alerta.
 3. **Relógio:** dígitos cheios (leitura imediata) ou matriz de pontos (assinatura

@@ -566,9 +566,20 @@ Opcional nesta fase: **Calendar API v3** com OAuth de app instalado, que traz:
 **Em aberto:**
 1. **Fase 5 / Calendar API:** só depois de 2 semanas com o pacote.
 2. **Atalho por AutoHotkey,** só se o `.lnk` falhar na fase 3.
-3. **Direção estética:** estudo de 4 direções com motion em
-   [`design/direcoes/`](../design/direcoes/). A escolha pode mudar o renderizador
-   (§ 2).
+3. **Direção estética: Expressivo** (Gabriel, 02/10). Ele também gostou muito
+   da Aurora; falta definir o que dela entra. A base é
+   [`design/horizonte-v1.html`](../design/horizonte-v1.html) e o estudo está em
+   [`design/2026-10-02-estudo-estetico.md`](../design/2026-10-02-estudo-estetico.md).
+
+   A identidade visual da § 1 (tokens "céu noturno") fica **superada** pela do
+   Expressivo:
+   - esquema tonal sólido derivado do papel de parede;
+   - formas que mudam por estado;
+   - números grandes e pesados;
+   - motion de mola.
+
+   **Continuam valendo:** a semântica do anel Claude, a histerese dos anéis de
+   sistema e a regra "zero loop".
 
 **Respondidas depois (02/10/2026):**
 
