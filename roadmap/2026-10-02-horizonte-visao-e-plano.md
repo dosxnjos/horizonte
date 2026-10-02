@@ -312,7 +312,7 @@ uma vez fica lá mesmo se for apagado depois.
 - `.gitignore` cobre `config.toml`, `*.json` fora de `tests/`, `temp/` e
   `*.log`;
 - fixtures são sintéticas, escritas à mão;
-- antes de todo push: `tools/varrer-segredos.sh` busca padrões genéricos
+- antes de todo commit: `tools/varrer-segredos.sh` busca padrões genéricos
   (`private-`, `calendar/ical`, `@gmail`, `Organization`, `Users\`) e mais os
   termos de `.segredos-locais`. Esse arquivo fica fora do repo e guarda domínios
   e nomes reais, que não podem virar padrão público. Na fase 1 o script vira um

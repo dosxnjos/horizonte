@@ -44,7 +44,7 @@ Este repositório é público. Nele nunca entra:
 - título real de compromisso;
 - arquivo de dados local.
 
-`tools/varrer-segredos.sh` confere isso antes de cada push.
+`tools/varrer-segredos.sh` confere isso antes de cada commit.
 
 ## Créditos
 
