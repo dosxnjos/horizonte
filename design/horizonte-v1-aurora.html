@@ -658,6 +658,7 @@ input[type=range]:focus-visible::-moz-range-thumb{ box-shadow: 0 0 0 2px #121110
       <button class="chip" type="button" data-sc="carga" aria-pressed="false">PC sob carga</button>
       <button class="chip" type="button" data-sc="stale" aria-pressed="false">Bandeja sem medição nova</button>
       <button class="chip" type="button" data-sc="corp" aria-pressed="false">Agenda corporativa falhando</button>
+      <button class="chip" type="button" data-sc="alerta" aria-pressed="false">Claude em alerta</button>
       <button class="chip" type="button" data-sc="limite" aria-pressed="false">Claude no limite</button>
     </div>
   </div>
@@ -1145,7 +1146,8 @@ function renderClaude(t, dir, quick){
   /* a última medição nunca fica no futuro do horário simulado: antes dela, vale "16 min atrás"
      sem perder o instante original (voltar ao horário da cena mostra a mesma idade) */
   const since = S.staleSince != null && S.staleSince <= t - 1 ? S.staleSince : t - 16;
-  let p = limit ? 97 : stale ? claudePct(since) : claudePct(t);
+  /* cenas fixas: "alerta" = faixa âmbar (60–84), "limite" = vermelho com zoom de 95 em diante */
+  let p = limit ? 97 : S.scene === 'alerta' ? 72 : stale ? claudePct(since) : claudePct(t);
   const color = stale ? 'var(--stale)' : claudeColor(p);
   const zoom = !stale && p >= 95;
   const shown = zoom ? (p - 95) / 5 * 100 : p;   // de 95 em diante: (p-95)/5 da volta

@@ -406,6 +406,7 @@ input[type=range]:focus-visible{outline-offset:2px;border-radius:10px}
       <button class="sbtn" type="button" data-scene="carga" aria-pressed="false">PC sob carga</button>
       <button class="sbtn" type="button" data-scene="velho" aria-pressed="false">Bandeja sem medição nova</button>
       <button class="sbtn" type="button" data-scene="corp" aria-pressed="false">Agenda corporativa falhando</button>
+      <button class="sbtn" type="button" data-scene="alerta" aria-pressed="false">Claude em alerta</button>
       <button class="sbtn" type="button" data-scene="limite" aria-pressed="false">Claude no limite</button>
     </div>
     <div class="seg" role="group" aria-label="Papel de parede" id="walls">
@@ -1021,7 +1022,8 @@ function claudeUpdate() {
   const on = ready.claude, stale = S.scene === 'velho', lim = S.scene === 'limite';
   /* dado velho = a última leitura da bandeja, de 47 min atrás: não acompanha o horário nem renova sozinho */
   const STALE = 47, tMed = stale ? S.t - STALE : S.t;
-  let p = Math.round(lim ? 97 : claudePct(tMed));
+  /* cenas fixas: "alerta" = faixa âmbar (60–84), "limite" = vermelho com zoom de 95 em diante */
+  let p = Math.round(lim ? 97 : S.scene === 'alerta' ? 72 : claudePct(tMed));
   const zoom = !stale && p >= 95;
   const f = zoom ? (p - 95) / 5 : p / 100;
   const st = stale ? 0 : claudeState(p);
