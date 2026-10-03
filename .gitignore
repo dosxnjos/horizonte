@@ -6,6 +6,8 @@ config.toml
 !tests/**/*.json
 temp/
 .playwright-mcp/
+# sobrescritas da máquina (apelidos das contas Claude); modelo versionado: Local.example.inc
+skin/@Resources/Local.inc
 
 # índice de roadmap gerado para o vault pessoal (texto do gerador cita outros projetos)
 roadmap/README.md

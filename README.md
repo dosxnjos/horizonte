@@ -7,8 +7,12 @@ abrir nada:
 - se o PC está engasgando;
 - quanto sobra das suas contas Claude.
 
-> **Status: em desenho.** Ainda não há widget para instalar. A visão, a
-> arquitetura e as fases estão no
+> **Status: fase 2, versão 0.1 sem release.** Os cinco widgets (Relógio, Dia,
+> Agenda, Máquina, Claude) já instalam: `powershell -NoProfile -File instalar.ps1 -ComSkin`
+> liga a pasta `skin\` ao Rainmeter, e o layout pronto fica em
+> [`layouts/Horizonte`](layouts/Horizonte/Rainmeter.ini). Como ligar, posicionar e
+> depurar cada um: [docs/widgets.md](docs/widgets.md). Falta o pacote `.rmskin`; o
+> cartão Aviso é da fase 3. A visão, a arquitetura e as fases estão no
 > [roadmap](roadmap/2026-10-02-horizonte-visao-e-plano.md). O mockup interativo
 > está em [`horizonte-visao-2026-10-02.html`](horizonte-visao-2026-10-02.html):
 > baixe e abra no navegador.

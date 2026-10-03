@@ -399,6 +399,36 @@ Passos:
     Como o pacote novo vem em seguida, seria trabalho jogado fora.
 - [ ] **Fase 2:** pacote com o tema Expressivo, um widget por vez, primeiro
   estático e depois animado, com prova no desktop real.
+  - [x] Base (`@Resources`: variáveis, tokens, estilos, `carregar`/`comum`/`anim`.lua) e
+    **Relógio** com dígitos que rolam, em 02/10. Bate com o protótipo a ±2 px físicos; parado
+    ~+0,1 ponto de CPU; uma virada custa ~44 ms de CPU. Detalhe:
+    [docs/widgets.md](../docs/widgets.md).
+  - [x] **Dia**, **Agenda**, **Máquina** e **Claude**, em 02 e 03/10, cada um com prova no desktop
+    real e capturas em `temp\fase2\` (fora do git). Modo privado na Agenda, propagado ao Dia.
+  - [x] **Revisão adversarial** (03/10): 5 correções (log de erro repetido no leitor, Dia
+    ignorando o modo privado, tooltip do botão Entrar, regra "só 5h na conta ativa" do Claude,
+    volta do sono na Máquina). Suíte inteira: +8 a +10 MB de RAM sobre a base (meta ≤ +15) e
+    0,8 % de um núcleo parada sem a Máquina; com a Máquina e a CPU oscilando, 3,4 a 5,5 %.
+    Detalhe: [widgets.md § Base](../docs/widgets.md#base-skinresources).
+  - [x] **Layout `Horizonte`** (03/10): Relógio e Dia em coluna em X=0 a partir de Y=197 (o Y do
+    skin antigo), Agenda numa coluna própria em X=454 e Máquina e Claude em X=858. Todos com
+    `AlwaysOnTop=-2`. Cópia versionada em `layouts/Horizonte/`. Layouts locais para voltar:
+    "GoogleCalendar antigo" e "Horizonte antes da integracao". O skin antigo já estava
+    descarregado (`Active=0`) quando a integração começou, e a pasta dele continua lá.
+    **Decisão técnica** (opus, confiança média): a Agenda não cabe empilhada sob o Dia (sobravam
+    94 px até a barra de tarefas), então ganhou coluna própria e `MaxItems=6` no `Local.inc`.
+    **Reverteria:** o Gabriel preferir a coluna única; nesse caso, `Y=0` e `MaxItems=2`.
+    Shim de DPI **não aplicado**: está documentado como ligar e desligar. Detalhe:
+    [widgets.md § Layout](../docs/widgets.md#layout-horizonte).
+  - [ ] **Pendente para fechar a fase:**
+    - pacote `.rmskin` 0.1 como release;
+    - provas da fase sem registro nas docs: papel de parede branco e preto, anéis a ±3 do Gerenciador, Win+D,
+      notebook desencaixado e a volta do sono real na Máquina;
+    - `comum.textoSeguro` só neutraliza aspas: um título com `#x#` é lido como variável;
+    - o ♻ do Dia só usa a conta `Active` e não cai para a primeira quando nenhuma está ativa;
+    - o Claude ignora o `Privado`: o roadmap pede "Conta 1/2" (os apelidos já não expõem dado);
+    - `Privado(v)` com animação em curso no Dia: o título só troca na virada do minuto;
+    - o `Maquina.lua` ainda tem a cópia própria do desenho do anel; falta migrar para o `anel.lua`.
 
 Os tokens do tema Expressivo saem fixos (esquema "Ardósia" do protótipo). Derivar
 as cores do papel de parede fica para a v2.

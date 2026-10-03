@@ -5,6 +5,36 @@ Achou outra: acrescente aqui, no mesmo formato.
 
 ## Rainmeter
 
+### Caixa "Rainmeter.ini não pôde ser salvo" aparece na tela do usuário
+- **Sintoma:** abre um diálogo modal de erro na tela do usuário. O "caminho do arquivo"
+  que ele mostra é uma lista de bangs, por exemplo
+  `[!SetVariable X "..." "Horizonte\Relogio"][!CommandMeasure ...]Rainmeter.ini`. O
+  processo `Rainmeter.exe` que o chamou fica pendurado. Aconteceu em 02/10/2026, durante a
+  Fase 2.
+- **Causa:** pela **linha de comando**, o `Rainmeter.exe` só aceita bang no formato
+  `!Bang arg1 arg2`. A sintaxe com colchetes `[!Bang ...][!Bang ...]` vale só dentro de
+  skin (Actions). Na linha de comando, o primeiro argumento que não começa com `!` é lido
+  como **caminho de settings**: sobe uma segunda instância que tenta salvar um
+  `Rainmeter.ini` nesse "caminho" e mostra o diálogo.
+- **Como evitar:**
+  - pela linha de comando, um bang por chamada, sem colchetes. Exemplo:
+    `& "C:\Program Files\Rainmeter\Rainmeter.exe" !SetVariable DebugAgenda "C:\x.json" "Horizonte\Relogio"`;
+  - para vários bangs, faça várias chamadas;
+  - se o diálogo já apareceu, mate só o processo extra (aquele cujo CommandLine começa
+    com `[`), nunca a instância principal.
+
+### Caixa "Não foi possível recarregar a skin ...: Arquivo não encontrado"
+- **Sintoma:** aparece um diálogo modal na tela do usuário com o nome de uma config de
+  teste (aconteceu com `Horizonte\_TesteCpu` em 02/10/2026).
+- **Causa:** a pasta ou o `.ini` da config foi apagado enquanto ela ainda estava ativa, ou
+  antes de um `!Refresh`/`!RefreshApp`. A instância principal tenta recarregar e mostra o
+  erro.
+- **Como evitar:**
+  - config de teste vai **fora** de `skin\`, por exemplo em `temp\`, com junction própria;
+  - ordem ao terminar: `!DeactivateConfig "<config>"` primeiro, conferir `Active=0` no
+    `Rainmeter.ini`, e **só depois** apagar a pasta;
+  - nunca apagar uma pasta de skin com o Rainmeter apontando para ela.
+
 ### Acento vira `Ã©` / `TAMBÃ‰M` no widget
 - **Sintoma:** texto com acento aparece quebrado (mojibake).
 - **Causa:** o Rainmeter lê `.ini`/`.inc` sem BOM como ANSI. UTF-8 sem BOM vira lixo.
@@ -41,6 +71,169 @@ Achou outra: acrescente aqui, no mesmo formato.
   rodando.
 - **Como evitar:** `agenda_sync/windows.py` só manda o bang se a janela `DummyRainWClass` (ou o
   processo) existir. Bang para config descarregada é ignorado pelo próprio Rainmeter.
+
+### Módulo Lua em UTF-16 dá erro de sintaxe no `dofile`
+- **Sintoma:** `dofile('comum.lua')` falha com erro de sintaxe na linha 1 (ou o acento sai
+  mojibake se o módulo estiver em UTF-8 e for lido como ANSI).
+- **Causa:** só o `ScriptFile` do measure é lido pelo Rainmeter (que entende UTF-16 LE com BOM). O
+  `dofile`/`loadfile` do Lua 5.1 lê bytes crus: o BOM `FF FE` e os zeros do UTF-16 não são Lua.
+- **Como evitar:** módulos do `@Resources\Lua` passam por `carregar.lua` (ASCII, por `dofile`), que
+  decodifica UTF-16 e chama `loadstring`. Só `json.lua` e `carregar.lua` ficam ASCII.
+  [widgets.md § Base](widgets.md#base-skinresources).
+
+### `SKIN` é `nil` dentro do módulo carregado
+- **Sintoma:** `attempt to index global 'SKIN' (a nil value)` na primeira linha do módulo que usa
+  `SKIN`, embora o script do widget use `SKIN` normalmente.
+- **Causa:** o Rainmeter põe `SKIN` no ambiente próprio do script do widget, não no `_G`. Um chunk
+  de `loadstring`/`dofile` nasce com o `_G`.
+- **Como evitar:** `carregar.lua` faz `setfenv(fn, getfenv(2))`: o módulo herda o ambiente de quem
+  chamou. Não carregar módulo que usa `SKIN` por `dofile` direto.
+
+### Chip (ou qualquer meter) medido com largura zero
+- **Sintoma:** o fundo do chip sai com ~24 px, só o padding, embora o texto apareça inteiro.
+- **Causa:** `SKIN:GetMeter(x):GetW()` devolve **0 para meter oculto** (`Hidden=1`), mesmo depois
+  de `!UpdateMeter`.
+- **Como evitar:** `!ShowMeter` antes de `!UpdateMeter` e `GetW()`; esconder só depois, se for o
+  caso.
+
+### Measure Script parou de rodar com `DefaultUpdateDivider=-1`
+- **Sintoma:** o `Update()` do Lua não é chamado; a hora não vira.
+- **Causa:** `DefaultUpdateDivider` no `[Rainmeter]` vale para meters **e measures**.
+- **Como evitar:** o measure Script que precisa do tick leva `UpdateDivider=1` explícito. Os
+  meters ficam em `-1` e o Lua manda `!UpdateMeter`/`!Redraw` só quando algo muda (parado = zero
+  redesenho).
+
+### `Edit` em arquivo UTF-16 do skin quebra o arquivo
+- **Sintoma:** depois de editar um `.ini`/`.inc`/`.lua` do `skin\` com uma ferramenta que grava
+  UTF-8, o Rainmeter mostra mojibake ou o Lua não carrega.
+- **Causa:** a working tree desses arquivos é UTF-16 LE com BOM; ferramentas de texto costumam ler
+  ou gravar UTF-8.
+- **Como evitar:** editar, depois rodar `powershell -NoProfile -File tools\skin-utf16.ps1`
+  (converte para UTF-16 o que estiver sem BOM, idempotente; pula `json.lua` e `carregar.lua`).
+  Observado em 02/10 (widget Dia): o `Edit` do Claude Code preservou o UTF-16 LE com BOM do
+  `Dia.lua`; o `Write` grava UTF-8 em arquivo novo, mas sobre um UTF-16 existente gravou UTF-16 sem
+  BOM (03/10, [abaixo](#write-num-arquivo-utf-16-seguido-do-skin-utf16ps1-duplica-os-zeros)). Rodar o
+  script depois de qualquer um dos dois não custa nada.
+
+### Widget novo não aparece com `!ActivateConfig`
+- **Sintoma:** `!ActivateConfig Horizonte\Dia Dia.ini` não faz nada; a seção não entra no
+  `Rainmeter.ini`.
+- **Causa:** o Rainmeter só enxerga pastas de config novas (mesmo dentro da junction) depois de
+  reler a árvore de skins.
+- **Como evitar:** `!RefreshApp` (ou `instalar.ps1 -ComSkin -SemDisparar`) depois de criar a pasta
+  do widget, e só então `!ActivateConfig`.
+
+### Texto colado ao vizinho ("termina15:30")
+- **Sintoma:** dois Strings postos lado a lado pelo Lua (`X` = X do anterior + `GetW()`) ficam
+  sem o espaço que terminava o primeiro texto.
+- **Causa:** `GetW()` do meter String não conta o espaço em branco do fim.
+- **Como evitar:** somar a largura de um espaço quando o texto termina em `' '` (o `Dia.lua` soma
+  4 px a 14 px), ou levar o espaço para o começo do texto seguinte.
+
+### Container "some" com o próprio desenho
+- **Sintoma:** um Shape usado como `Container=` de outro meter não aparece mais na tela.
+- **Causa:** o meter que serve de Container vira só máscara: o Rainmeter não o desenha.
+- **Como evitar:** máscara num Shape à parte, com a mesma geometria (no Dia: `BotaoMasc` recorta o
+  rótulo "Entrar" e o `Botao` desenha a pílula).
+
+### Tooltip de uma linha aparece em cima de outra
+- **Sintoma:** passando o mouse numa linha da Agenda, o tooltip mostra o título de outro evento (02/10).
+- **Causa:** o Shape tinha `X=0`, `Y=0` e desenhava a forma lá embaixo, em coordenadas absolutas. O
+  retângulo do meter vai da origem até a borda da forma, e o `ToolTipText` vale para esse retângulo
+  inteiro: o tooltip do slot de baixo cobria todas as linhas de cima. O hover (`MouseOverAction`)
+  não sofre, porque usa a forma.
+- **Como evitar:** Shape com tooltip ou clique fica **na posição dele** (`X`/`Y` do meter) e desenha
+  em coordenadas locais (`Rectangle 0,0,w,h`). Vale para pontos, botões e linhas.
+
+### GPU Engine pesa mesmo lido a cada 5 s
+- **Sintoma:** com a Máquina carregada e nada mudando na tela, o `Rainmeter.exe` gasta ~3,5 pontos de
+  um núcleo a mais e ~10 MB a mais de RAM (02/10).
+- **Causa:** `UsageMonitor` com `Alias=GPU` consulta a categoria "GPU Engine" (centenas de
+  instâncias) numa thread própria enquanto o measure estiver configurado para ela. Ler o measure
+  menos vezes (`!UpdateMeasure` a cada 5 s) não muda nada.
+- **Como evitar:** o measure fica apontado para um contador barato (`Processor Information`) e o Lua
+  troca para `Alias=GPU` por `!SetOption` só durante uma amostra de 2 s a cada 10 s
+  (`Maquina.lua`, `gpuCaro`/`amostrarGpu`). Medido: parado volta a ficar no ruído.
+
+### UsageMonitor custa CPU com o measure desligado
+- **Sintoma:** os measures do "processo mais pesado" (`Alias=CPU`/`RAM`, categoria Process) custam
+  ~2 pontos de um núcleo mesmo com `Disabled=1` (02/10).
+- **Causa:** a mesma da GPU: a thread do plugin consulta toda categoria configurada, ligada ou não.
+- **Como evitar:** em repouso o measure aponta para o contador do `mCpu`; o hover troca para o alias
+  e a saída do mouse volta e manda um `!UpdateMeasure` com as opções de repouso antes do
+  `!DisableMeasure` (`topLigar`/`topDesligar`).
+
+### CPU do processo dividida duas vezes
+- **Sintoma:** o hover mostraria "powershell 0,5%" para um laço que ocupa um núcleo inteiro.
+- **Causa:** o `UsageMonitor` (`Alias=CPU`) já entrega o "% Processor Time" do processo dividido
+  pelos núcleos lógicos: um núcleo inteiro de 14 = 7 % (medido em 02/10, igual ao Gerenciador).
+- **Como evitar:** não dividir pelo nº de threads no Lua.
+
+### Log cheio de "'ActionList1' is currently running"
+- **Sintoma:** o `Rainmeter.log` ganha um aviso por troca de valor quando vários anéis animam juntos.
+- **Causa:** `!CommandMeasure mAT "Execute 1"` com a lista já rodando é ignorado com aviso.
+- **Como evitar:** o Lua guarda se a lista está rodando e só manda `Execute` quando não está
+  (`ligarTimer` no `Maquina.lua`). Com isso, uma lista com `Repeat` finito pode acabar sozinha com
+  animação pela metade: use um teto alto (`Repeat Passo, 30, 1000`), `Stop 1` quando ninguém anima e
+  um vigia no `Update()` que religa.
+
+### `!WriteKeyValue` pela linha de comando dá "Illegal path"
+- **Sintoma:** `Rainmeter.exe !WriteKeyValue Variables X 1 "C:\Dev\horizonte\skin\@Resources\Local.inc"`
+  não grava nada; com `Logging=1`, o log diz `!WriteKeyValue: Illegal path`.
+- **Causa:** o Rainmeter só escreve em arquivos dentro da pasta de skins ou de settings, e o caminho
+  real do repo (o alvo da junction) não está nela.
+- **Como evitar:** dentro do skin, `#@#Local.inc` (resolve para `Documents\Rainmeter\Skins\...`);
+  fora, editar o arquivo direto (ele é local e não versionado). O caminho pela junction
+  (`Documents\Rainmeter\Skins\Horizonte\...`) deve passar, mas não foi testado.
+
+### Argumento vazio some no caminho do PowerShell
+- **Sintoma:** `& Rainmeter.exe '!SetVariable' 'DebugSnapshot' '' 'Horizonte\Claude'` não volta o widget
+  ao arquivo real; o `widget.log` diz "arquivo ausente" logo depois (03/10, widget Claude).
+- **Causa:** o Windows PowerShell 5.1 descarta argumento string vazio ao chamar programa nativo: o bang
+  chega como `!SetVariable DebugSnapshot Horizonte\Claude` e a variável vira o nome da config.
+- **Como evitar:** para zerar uma variável de depuração, `!Refresh` da config (o `!SetVariable` não
+  sobrevive a ele); ou passar `'""'`. Leitor com último estado bom segura a tela enquanto isso.
+
+### Bang pelo Git Bash com `\$var` no nome da config
+- **Sintoma:** `!ZPos`/`!Refresh` "não fazem nada"; com `Logging=1` aparece `Skin "Horizonte$c" does
+  not exist` (03/10).
+- **Causa:** aspas e barras invertidas atravessam duas camadas (bash e PowerShell); `"Horizonte\\$c"`
+  dentro de um `powershell -Command "..."` chega com o `$` ou a barra errados.
+- **Como evitar:** loop de bangs num `.ps1` (`"Horizonte\$c"` com o `$c` do próprio PowerShell), ou um
+  bang por chamada com o nome da config escrito por inteiro.
+- **Também sem PowerShell no meio** (03/10, revisão): um `for c in ...; "$RM" '!Refresh' "Horizonte\\$c"`
+  direto no Git Bash não deu erro nenhum e não recarregou nada; o widget seguiu com o Lua antigo e o
+  teste parecia "falhar". Confira o efeito (captura ou `widget.log`), nunca só a ausência de erro.
+
+### `Get-Process Rainmeter` devolve dois processos
+- **Sintoma:** um script de medição quebra com `[System.Object[]] não contém um método denominado
+  'op_Subtraction'` logo depois de mandar um bang (03/10, revisão).
+- **Causa:** cada `Rainmeter.exe !Bang` da linha de comando sobe um processo efêmero que entrega o
+  bang à instância principal e sai. Por uns instantes há dois `Rainmeter.exe`; o efêmero não é o
+  diálogo de erro (esse fica pendurado, com o CommandLine começando por `[`).
+- **Como evitar:** medir o **mais antigo** (`Get-Process Rainmeter | Sort-Object StartTime |
+  Select-Object -First 1`) ou esperar uns segundos depois do último bang.
+
+### `Write` num arquivo UTF-16 seguido do `skin-utf16.ps1` duplica os zeros
+- **Sintoma:** uma variável do `Local.inc` "não pega" (`MaxItems=6` e a Agenda seguiu com 8 itens,
+  03/10, integração). O arquivo começa com `FF FE 5B 00 00 00 56 00`: cada letra virou letra + 3 zeros.
+  Os apelidos das contas Claude e o `Privado` voltariam ao padrão no próximo refresh.
+- **Causa:** a ferramenta `Write` do Claude Code, sobrescrevendo um arquivo que **já era** UTF-16 LE,
+  gravou UTF-16 LE **sem BOM**. O `skin-utf16.ps1` de então só olhava o BOM, leu os bytes como UTF-8 e
+  reencodou: UTF-16 dentro de UTF-16.
+- **Como evitar:** o `skin-utf16.ps1` agora reconhece UTF-16 LE sem BOM (zeros nas posições ímpares) e
+  só acrescenta o BOM (testado com UTF-8, UTF-16 com e sem BOM). Depois de converter, conferir os 4
+  primeiros bytes: `FF FE` + letra + `00`. Para reescrever um arquivo UTF-16 inteiro, o caminho mais
+  seguro é escrever o texto num arquivo UTF-8 à parte e convertê-lo para o destino.
+
+### Cartão da Agenda atrás da barra de tarefas
+- **Sintoma:** o rodapé da Agenda ("mais N eventos") fica coberto pela barra de tarefas; o
+  `KeepOnScreen=1` não empurra a janela para cima (03/10, integração, com a Agenda em y=197 e 8 itens).
+- **Causa:** com `DynamicWindowSize=1`, a janela cresce para baixo a partir do `Y`, e o `KeepOnScreen`
+  não a trouxe de volta acima da barra. Não foi isolado se o limite dele é o monitor (864 px lógicos)
+  em vez da área útil (816), ou se ele só age quando a janela é movida, não quando cresce.
+- **Como evitar:** `Y` + altura máxima da Agenda ≤ área útil; o teto da altura é o `MaxItems`
+  (`Local.inc`). Conta e posições: [widgets.md § Layout](widgets.md#layout-horizonte).
 
 ## Python no Windows
 
@@ -171,3 +364,11 @@ Achou outra: acrescente aqui, no mesmo formato.
   skin antigo real é UTF-8 sem BOM. Uma fixture `.ini` commitada nunca seria UTF-8.
 - **Como evitar:** os testes geram o `.ini` em `tmp_path`, nas quatro codificações
   (`tests/test_cli.py`).
+
+### Varredor "limpo" com segredo dentro do skin
+- **Sintoma:** `tools/varrer-segredos.sh` diz "limpo", mas um `.inc`/`.lua` do `skin\` tem um
+  caminho `C:\Users\<nome>` ou um e-mail.
+- **Causa:** a working tree do skin é UTF-16 LE: cada letra vem colada a um byte zero e o `grep`
+  não casa o padrão ASCII.
+- **Como evitar:** o varredor detecta o BOM `FF FE` e passa o arquivo por `iconv` antes do
+  `grep` (desde 02/10/2026; testado com um `.inc` UTF-16 sintético).

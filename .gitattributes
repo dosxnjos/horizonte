@@ -2,3 +2,8 @@
 *.sh text eol=lf
 *.ini text eol=crlf working-tree-encoding=UTF-16LE-BOM
 *.inc text eol=crlf working-tree-encoding=UTF-16LE-BOM
+# Lua dos widgets: UTF-16 LE com BOM (acentos certos no Rainmeter). Exceção: os ASCII que o
+# Lua 5.1 carrega por dofile (bytes crus, não entende UTF-16).
+skin/**/*.lua text eol=crlf working-tree-encoding=UTF-16LE-BOM
+skin/@Resources/Lua/json.lua -working-tree-encoding
+skin/@Resources/Lua/carregar.lua -working-tree-encoding

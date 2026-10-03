@@ -6,7 +6,7 @@ arquivo é o dono do formato de cada um.
 | arquivo | quem grava | quem lê |
 | --- | --- | --- |
 | `%LOCALAPPDATA%\Horizonte\agenda.json` | `agenda_sync` ([uso](agenda_sync.md)) | `Relogio`, `Dia`, `Agenda` |
-| `snapshot.json` do claude-usage-tray | o tray (projeto à parte) | `Claude` (fase 2; contrato v1 na fase 2b do roadmap) |
+| `snapshot.json` do claude-usage-tray | o tray (projeto à parte) | `Claude` (fase 2; contrato v1 na fase 2b do roadmap); `Dia` lê só `accounts[Active].Bars[Label=5h].ResetsAt` (ISO 8601 com fuso, UTF-8 com BOM) para o ♻ da linha do dia |
 
 ## `agenda.json` (schemaVersion 1)
 

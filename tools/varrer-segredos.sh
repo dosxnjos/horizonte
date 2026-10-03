@@ -13,7 +13,18 @@ if [ -f .segredos-locais ]; then
 fi
 arquivos=$(git ls-files --cached --others --exclude-standard | grep -v '^tools/varrer-segredos.sh$' || true)
 [ -z "$arquivos" ] && exit 0
-if echo "$arquivos" | tr '\n' '\0' | xargs -0 grep -n -i -E "$padroes" 2>/dev/null; then
+# Arquivos do skin\ ficam em UTF-16 LE com BOM na working tree: o grep direto não enxerga
+# nada neles (cada letra vem colada a um byte zero). Esses passam por iconv antes.
+achados=$(echo "$arquivos" | while IFS= read -r f; do
+  [ -f "$f" ] || continue
+  if [ "$(head -c 2 "$f" | od -An -tx1 | tr -d ' \n')" = "fffe" ]; then
+    iconv -f UTF-16 -t UTF-8 "$f" 2>/dev/null | grep -n -i -E "$padroes" | sed "s|^|$f (utf-16):|"
+  else
+    grep -n -i -E "$padroes" "$f" /dev/null 2>/dev/null
+  fi
+done || true)
+if [ -n "$achados" ]; then
+  echo "$achados"
   echo "varrer-segredos: achado acima. Nada de commit até limpar." >&2
   exit 1
 fi
