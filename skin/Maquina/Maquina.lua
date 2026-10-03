@@ -305,7 +305,11 @@ local function mostrar(g, varrer, atraso)
   local dir = 1
   if g.valorVis and alvo.valor and alvo.valor < g.valorVis then dir = -1 end
 
-  if not animando() then
+  -- Número de sistema muda o tempo todo: a rolagem por leitura custava 2 a 5 pontos de CPU parado
+  -- (revisão de 03/10, ~370 passos de animação/min). Só anima entrada (varrer) e troca de faixa;
+  -- a leitura comum troca seco.
+  local trocaFaixa = g.faixaVis ~= nil and alvo.faixa ~= g.faixaVis
+  if not animando() or (not varrer and not trocaFaixa) then
     if g.A then g.A = nil; S.ativos = S.ativos - 1; pararTimerSeOcioso() end
     g.texto, g.uni, g.valorVis, g.faixaVis = alvo.texto, alvo.uni, alvo.valor, alvo.faixa
     g.vis = {f = alvo.f, cor = cor1, amp = amp1, rot = rot1}
