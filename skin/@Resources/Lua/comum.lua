@@ -204,11 +204,21 @@ function M.corHex(hex)
 end
 
 -- Caminho do snapshot.json do claude-usage-tray. Só leitura: nunca uma segunda coleta.
--- DebugSnapshot (variável) troca por um arquivo de teste.
+-- DebugSnapshot (variável) troca por um arquivo de teste. FonteClaude (variável, com %VAR%) troca por outro
+-- arquivo no mesmo formato, gravado por um script local (ver docs/widgets.md § Claude).
 function M.caminhoSnapshot()
   local dbg = SKIN:GetVariable('DebugSnapshot', '')
   if dbg and dbg ~= '' then return dbg end
+  local fonte = M.fonteClaude()
+  if fonte ~= '' then return fonte end
   return (os.getenv('LOCALAPPDATA') or '') .. '\\claude-usage-tray\\snapshot.json'
+end
+
+-- FonteClaude expandida ('' = a bandeja)
+function M.fonteClaude()
+  local f = SKIN:GetVariable('FonteClaude', '') or ''
+  if f == '' then return '' end
+  return M.expandirAmbiente(f)
 end
 
 -- "%USERPROFILE%\x" -> caminho com as variáveis de ambiente expandidas (as desconhecidas ficam como

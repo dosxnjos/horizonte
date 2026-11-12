@@ -548,11 +548,20 @@ Medidas do protótipo (`.w-claude` de `design/horizonte-v1-expressivo.html`): an
 número em Display 700 a 40 px com `%` a 16,8 px e 70 %, nome da conta em Display 650 15 px, etiqueta e
 linhas em Text 12,5 px, valor em Cascadia Mono, legenda em Text 13,5 px com o começo em 600 na cor do texto.
 
+**`FonteClaude` (12/11/2026).** Com a variável `FonteClaude` (caminho com `%VAR%`, no `Local.inc`) o widget lê
+outro arquivo **no mesmo formato** do `snapshot.json` (`savedAt`, `accounts[{Num, Active, Status, Stale, AgeS,
+Bars:[{Label, Pct, ResetsAt}]}]`), gravado por um script local que junta as cotas já medidas (nesta máquina,
+a semana `7d` das contas de setup token, que a bandeja não consegue ler). Muda só isto: a coluna da direita
+lista **todas as contas, a ativa primeiro** (nome claro e etiqueta "ativa"; as outras com o nome apagado),
+cada uma com a barra e a linha "renova hoje 16:00" / "renova sex 14:00"; a legenda ganha "(ativa)" depois do
+nome; "parado" = arquivo sem regravar há mais de `FonteParadaS` (900 s), sem olhar processo, e o bloco diz
+"cota sem atualização". O widget continua só lendo arquivo: quem mede é o script de fora.
+
 | o quê | regra |
 | --- | --- |
 | conta do anel | a `Active=true`; sem nenhuma, a primeira (`Get-ActiveAccount` da bandeja) |
 | valor do anel | barra `Label="5h"`; sem ela, a primeira barra (`Get-SessionPct`). O número é o `Pct` como veio (arredondado); o arco usa o `Pct` limitado a 0..100 |
-| cor | verde `#30A46C` < 60 ≤ âmbar `#F5A623` < 85 ≤ vermelho `#E5484D`. Disco interno na cor a 15 %: círculo, cookie (10 lóbulos, 0,05) no âmbar, sol (0,1) no vermelho. Trilho na cor a 24 % |
+| cor | verde `#30A46C` < 75 ≤ âmbar `#F5A623` < 95 ≤ vermelho `#E5484D` (12/11/2026, pedido do Gabriel; era 60/85). Disco interno na cor a 15 %: círculo, cookie (10 lóbulos, 0,05) no âmbar, sol (0,1) no vermelho. Trilho na cor a 24 % |
 | zoom | de 95 em diante o arco mostra `(p-95)/5` da volta (mínimo de 8°, como a bandeja: 95 % é "início da cauda", não anel vazio) e aparece o **ponto marcador** acima do topo, na cor do arco. Sem texto |
 | dado velho | `Stale=true` da bandeja: anel, disco e barras daquela conta em cinza `#747684`, número a 62 %, e a idade **sempre visível** embaixo do número ("há 21 min"); idade = `AgeS` + (agora − `savedAt`). `AgeS` nulo: "antiga" no anel e "medição antiga" na legenda. Nenhum limiar próprio de idade (o widget nunca fica cinza com o ícone colorido) |
 | bandeja parada | `savedAt` com mais de `TrayParadoS` (150 s) **e** o processo `Claude Usage Tray.exe` ausente (`Measure=Process`, consultado só quando o `savedAt` passou do limite): anel cinza com a idade, e a legenda vira um **bloco cinza** "bandeja parada, dados de 00:10. Clique para abrir." O clique roda o `TrayExe` (expandido pelo Lua, conferido com `io.open`; com a bandeja viva não lança nada). Sem `TrayExe` válido, o bloco diz para ajustar no `Local.inc` |
@@ -596,7 +605,8 @@ de CPU por outras sessões, o que deixa o ruído alto):
 
 **Variáveis** (`Variaveis.inc`, sobrescrevíveis no `Local.inc`): `ReleituraClaudeS` (20), `TrayParadoS`
 (150), `TrayExe` (padrão `%USERPROFILE%\claude-usage-tray\Claude Usage Tray.exe`; sempre com variável
-de ambiente, o caminho real desta máquina fica no `Local.inc`), `DebugTray`, `ApelidoConta<N>`.
+de ambiente, o caminho real desta máquina fica no `Local.inc`), `DebugTray`, `ApelidoConta<N>`, `FonteClaude`
+(vazio = a bandeja) e `FonteParadaS` (900).
 
 ### Depurar
 

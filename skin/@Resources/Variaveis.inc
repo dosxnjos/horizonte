@@ -62,6 +62,11 @@ TrayParadoS=150
 TrayExe=%USERPROFILE%\claude-usage-tray\Claude Usage Tray.exe
 ; DebugTray=0 finge o processo da bandeja ausente (1 = presente; vazio = o real).
 DebugTray=
+; FonteClaude=<caminho com %VAR%> lê outro arquivo no formato do snapshot.json (cotas gravadas por um script
+; local); vazio = a bandeja. Com ela, a coluna mostra todas as contas (a ativa primeiro) com a 7d e a renovação,
+; e "parado" = arquivo sem regravar há mais de FonteParadaS segundos (sem processo de bandeja).
+FonteClaude=
+FonteParadaS=900
 
 ; Sobrescritas desta máquina (fora do repo). Modelo: Local.example.inc
 @IncludeLocal=#@#Local.inc

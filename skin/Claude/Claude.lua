@@ -1,10 +1,12 @@
 -- Horizonte\Claude: anel da janela 5h da conta ativa + barras das contas inativas.
 -- Arquivo em UTF-16 LE com BOM (assim os acentos chegam certos aos meters).
 -- Regras (roadmap § 1 e docs/widgets.md § Claude):
---   * SÓ LÊ %LOCALAPPDATA%\claude-usage-tray\snapshot.json (nunca cswap nem API);
+--   * SÓ LÊ %LOCALAPPDATA%\claude-usage-tray\snapshot.json (nunca cswap nem API), ou o arquivo de
+--     FonteClaude no mesmo formato (cotas das contas gravadas por um script local; ver docs/widgets.md);
+--     com FonteClaude, a coluna mostra TODAS as contas (a ativa primeiro, destacada) com a 7d e a renovação;
 --   * anel = janela "5h" da conta Active (Get-SessionPct da bandeja: barra Label "5h", senão a primeira);
 --     sem Active, a primeira conta (Get-ActiveAccount);
---   * verde < 60 ≤ âmbar < 85 ≤ vermelho; de 95 em diante o arco mostra (p-95)/5 da volta, com ponto
+--   * verde < 75 ≤ âmbar < 95 ≤ vermelho (12/11/2026; era 60/85); de 95 em diante o arco mostra (p-95)/5 da volta, com ponto
 --     marcador (mínimo de 8°, como a bandeja);
 --   * cinza só com Stale=true da bandeja ou com a bandeja parada (savedAt > TrayParadoS E processo
 --     ausente); a idade (AgeS + agora - savedAt) fica sempre visível nesses casos;
@@ -22,7 +24,7 @@ local L = {}          -- geometria (px de skin)
 local S = {
   animVar = true, animSistema = true,
   seg = 0, segSnap = 0, releitura = 60, releituraSnap = 20, paradoS = 150,
-  snap = nil, minuto = nil, hover = false, debugTray = '',
+  snap = nil, minuto = nil, hover = false, debugTray = '', fonte = '',
   ativos = 0, timer = false,
 }
 -- estado visual do anel (o que está na tela) e animações em curso
@@ -115,11 +117,11 @@ local function barraSessao(bs)
 end
 
 local function corPct(p)
-  if p >= 85 then return T.critico elseif p >= 60 then return T.alerta end
+  if p >= 95 then return T.critico elseif p >= 75 then return T.alerta end
   return T.ok
 end
 local function faixaPct(p)
-  if p >= 85 then return 2 elseif p >= 60 then return 1 end
+  if p >= 95 then return 2 elseif p >= 75 then return 1 end
   return 0
 end
 
@@ -146,6 +148,15 @@ local function textoReset(iso, agora)
   return 'renova ' .. hhmmDia(t, agora) .. ' (em ' .. em .. ')'
 end
 
+-- linha curta da coluna (FonteClaude): "renova hoje 16:00", "renova sex 14:00", "renovou hoje 16:00"
+local function textoRenovaCurto(iso, agora)
+  local t = (type(iso) == 'string' and iso ~= '') and comum.epochIso(iso) or nil
+  if not t then return nil end
+  local quando = hhmmDia(t, agora)
+  if comum.dataIso(t) == comum.dataIso(agora) then quando = 'hoje ' .. quando end
+  return (t <= agora and 'renovou ' or 'renova ') .. quando
+end
+
 -- O processo da bandeja está rodando? (Measure=Process, atualizado só aqui)
 local function trayVivo()
   if S.debugTray == '0' then return false elseif S.debugTray == '1' then return true end
@@ -165,8 +176,13 @@ local function derivar(snap, agora)
   local idadeSalvo = salvo and math.max(0, agora - salvo) or nil
   -- bandeja parada: o snapshot envelheceu E o processo sumiu (com a bandeja viva, o recuo do 429 deixa o
   -- savedAt envelhecer até 10 min sem que nada esteja errado)
+  -- com FonteClaude não há processo de bandeja: parado = arquivo sem regravar há mais de FonteParadaS
   local parado = false
-  if idadeSalvo == nil or idadeSalvo > S.paradoS then parado = not trayVivo() end
+  if S.fonte ~= '' then
+    parado = idadeSalvo == nil or idadeSalvo > S.fonteParadaS
+  elseif idadeSalvo == nil or idadeSalvo > S.paradoS then
+    parado = not trayVivo()
+  end
   E.parado = parado
 
   local ativa
@@ -215,7 +231,7 @@ local function derivar(snap, agora)
       else
         E.cap = ''
       end
-      E.prefixo = b.rot .. ', ' .. nome
+      E.prefixo = b.rot .. ', ' .. nome .. ((S.fonte ~= '' and #lista > 1) and ' (ativa)' or '')
       if ativa.Stale == true then
         if idade then
           E.resto = 'sem medição nova ' .. idadeTexto(idade) .. ' (última às ' .. comum.hhmm(agora - idade) .. ')'
@@ -233,7 +249,9 @@ local function derivar(snap, agora)
   if parado then
     local quando = salvo and (', dados de ' .. hhmmDia(salvo, agora)) or ''
     local exe = comum.expandirAmbiente(var('TrayExe', ''))
-    if exe ~= '' and comum.existe(exe) then
+    if S.fonte ~= '' then
+      E.bloco = 'cota sem atualização' .. quando .. '. Confira a tarefa que grava o arquivo da FonteClaude.'
+    elseif exe ~= '' and comum.existe(exe) then
       E.bloco = 'bandeja parada' .. quando .. '. Clique para abrir.'
     else
       E.bloco = 'bandeja parada' .. quando .. '. Ajuste TrayExe no Local.inc para abrir por aqui.'
@@ -271,7 +289,24 @@ local function derivar(snap, agora)
   end
   local inativas = {}
   for _, c in ipairs(lista) do if c ~= ativa then inativas[#inativas + 1] = c end end
-  if #inativas == 0 then
+  if S.fonte ~= '' and ativa then
+    -- FonteClaude (12/11/2026): todas as contas, a ativa primeiro (nome claro + "ativa"; as outras com o
+    -- nome apagado), cada uma com a barra da semana e a linha "renova sex 14:00"
+    local P = E.painelNormal
+    local ordem = {ativa}
+    for _, c in ipairs(inativas) do ordem[#ordem + 1] = c end
+    for i = 1, math.min(#ordem, MAX_NOMES) do
+      local c = ordem[i]
+      P[#P + 1] = {tipo = 'nome', nome = nomeConta(c), tag = etiqueta(c, c == ativa and 'ativa' or 'inativa'),
+        apagado = c ~= ativa}
+      for _, l in ipairs(linhas(c, nil)) do P[#P + 1] = l end
+      local bs = barras(c)
+      local b7
+      for _, b in ipairs(bs) do if b.rot == '7d' then b7 = b end end
+      local r = textoRenovaCurto((b7 or bs[1] or {}).reset, agora)
+      if r then P[#P + 1] = {tipo = 'aviso', chave = tostring(c.Num) .. '|renova', rot = r} end
+    end
+  elseif #inativas == 0 then
     -- regra do anel (roadmap § 1): da conta ativa, em repouso, só a janela 5h. Sem inativas, a coluna
     -- repete só a 5h da ativa; 7d e Fable aparecem só no hover do anel (pedido explícito do mouse).
     if ativa then
@@ -508,10 +543,11 @@ local function barraShape(j, f, cor, a)
     num(w), num(L.barH), num(L.barH / 2), cor, ta))
 end
 
+local NMCOR = {}       -- cor do nome i no painel (a conta não ativa da FonteClaude vem apagada)
 local function coresPainel(a)
   local A = function(c, base) return string.format('%s,%d', c, math.floor((base or 255) * a + 0.5)) end
   for i = 1, MAX_NOMES do
-    opcao('Nm' .. i, 'FontColor', A(T.on))
+    opcao('Nm' .. i, 'FontColor', A(NMCOR[i] or T.on))
     opcao('Tg' .. i, 'FontColor', A(T.onV))
   end
   for j = 1, MAX_LINHAS do
@@ -537,6 +573,7 @@ local function montarPainel(P, topo)
       if prev then y = y + L.vaoConta end
       ni = ni + 1
       local nm, tg = 'Nm' .. ni, 'Tg' .. ni
+      NMCOR[ni] = it.apagado and T.onV or T.on
       mostrarMeter(nm, true)
       opcao(nm, 'Text', comum.textoSeguro(it.nome))
       opcao(nm, 'Y', num(y + L.nomeDY))
@@ -702,7 +739,7 @@ end
 local function assinaturaPainel(P)
   local t = {}
   for _, it in ipairs(P) do
-    t[#t + 1] = table.concat({it.tipo, it.nome or '', it.tag or '', it.rot or '', it.txt or '',
+    t[#t + 1] = table.concat({it.tipo, it.nome or '', it.tag or '', tostring(it.apagado), it.rot or '', it.txt or '',
       it.cor or '', it.f and string.format('%.4f', it.f) or ''}, '\1')
   end
   return table.concat(t, '\2')
@@ -823,6 +860,8 @@ function Initialize()
     S.releituraSnap = tonumber(var('ReleituraClaudeS', '20')) or 20
     S.paradoS = tonumber(var('TrayParadoS', '150')) or 150
     S.debugTray = var('DebugTray', '')
+    S.fonte = comum.fonteClaude()
+    S.fonteParadaS = tonumber(var('FonteParadaS', '900')) or 900
 
     -- largura do '%' medida no próprio meter
     bang('!SetOption', 'Uni', 'Text', '%')
