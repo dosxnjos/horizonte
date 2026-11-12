@@ -1,13 +1,14 @@
 [Variables]
-; Tema Aurora (design/horizonte-v1-aurora.html): vidro escuro, luz como material, um único acento âmbar.
-; Escolha: Tema=aurora. Mesmos nomes do Tokens-expressivo.inc; o que muda é o papel de cada um:
-;   - superfícies em R,G,B,A (vidro translúcido). O Rainmeter não desfoca o que está atrás, então o
-;     vidro é mais opaco que o do protótipo (alfa ~0,82 no lugar de 0,50 sobre blur de 30 px);
+; Esquema Crepúsculo (em inglês, "Dusk"): cartões escuros translúcidos, um único acento âmbar.
+; Escolha: Tema=crepusculo. Nasceu como primeira tentativa do tema Aurora e o dono gostou dele como
+; esquema próprio (12/11/2026). NÃO é o Aurora do protótipo (design/horizonte-v1-aurora.html, vidro
+; granulado com luz na borda): esse é uma estética inteira, pendente na issue do repo.
+; Mesmos nomes do Tokens-expressivo.inc; o que muda é o papel de cada um:
+;   - superfícies em R,G,B,A (translúcidas, alfa ~0,82);
 ;   - o relógio não tem cartão: CorPri é quase transparente (alfa 1, para o arrasto continuar pegando)
-;     e os dígitos flutuam sobre o papel de parede, como no protótipo;
+;     e os dígitos flutuam sobre o papel de parede;
 ;   - o cartão Dia não muda de forma (raio 14 em todos os papéis) e muda pouco de cor: o papel é
-;     dito pelo texto e por um tom quente ou frio no vidro (variáveis Dia* abaixo, lidas pelo Dia.lua).
-; Simplificações (o Rainmeter não faz): sem blur, sem grão, sem hairline de 1 px na borda.
+;     dito pelo texto e por um tom quente ou frio (variáveis Dia* abaixo, lidas pelo Dia.lua).
 
 ; vidro: --glass rgba(21,20,18,.50) sobre blur; aqui 21,20,18 a ~0,82
 CorS=21,20,18,210

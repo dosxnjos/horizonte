@@ -7,9 +7,9 @@ what is next on my agenda, is my PC choking, and how much is left of my Claude q
 
 ![Expressivo theme](docs/screenshots/horizonte-expressivo.png)
 
-| Pistache | Aurora |
+| Pistache | Crepúsculo (Dusk) |
 | --- | --- |
-| ![Pistache theme](docs/screenshots/horizonte-pistache.png) | ![Aurora theme](docs/screenshots/horizonte-aurora.png) |
+| ![Pistache theme](docs/screenshots/horizonte-pistache.png) | ![Crepúsculo (Dusk) theme](docs/screenshots/horizonte-crepusculo.png) |
 
 The screenshots show the built-in **demo mode**: sample agenda and sample Claude usage, so the
 suite looks alive the moment you install it.
@@ -46,7 +46,7 @@ Save, then right-click > **Refresh skin**. Reinstalling or upgrading keeps your 
 | --- | --- |
 | `Idioma` | `en` English (default) or `pt` Portuguese (Brazil). Dates, labels, menus. Times are 24 h |
 | `Demo` | `1` sample data (default) or `0` your real data |
-| `Tema` | `expressivo` (solid tonal cards, default), `pistache` (the same in a light scheme), `aurora` (dark translucent glass, the clock floats over the wallpaper) |
+| `Tema` | `expressivo` (solid tonal cards, default), `pistache` (the same in a light scheme), `crepusculo` ("Dusk": dark translucent cards with one amber accent, the clock floats over the wallpaper) |
 | `Scale` | size multiplier, e.g. `1.25` |
 | `Animacoes` | `1` transitions on, `0` off |
 | `MaxItems` | how many events the Agenda lists before "N more events" |

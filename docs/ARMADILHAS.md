@@ -100,7 +100,7 @@ Achou outra: acrescente aqui, no mesmo formato.
 
 ### Tema com superfície translúcida quebra `#CorS#,alfa`
 - **Sintoma:** cor errada ou forma sumida num tema novo, sem erro no log.
-- **Causa:** no `Tokens-aurora.inc` as superfícies (`CorS`, `CorSHi`, `CorSold`, `CorCalm`) já vêm em
+- **Causa:** no `Tokens-crepusculo.inc` as superfícies (`CorS`, `CorSHi`, `CorSold`, `CorCalm`) já vêm em
   `R,G,B,A`; `#CorS#,40` vira cinco números.
 - **Como evitar:** alfa extra só nos tokens de texto e acento (`CorOn`, `CorOnV`, `CorOnPri`...). O
   `anim.alfa`/`anim.cor` do Lua aceitam os dois formatos.

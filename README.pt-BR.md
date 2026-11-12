@@ -7,9 +7,9 @@ o que vem agora na agenda, se o PC está engasgando e quanto sobra da cota do Cl
 
 ![Tema Expressivo](docs/screenshots/horizonte-expressivo.png)
 
-| Pistache | Aurora |
+| Pistache | Crepúsculo |
 | --- | --- |
-| ![Tema Pistache](docs/screenshots/horizonte-pistache.png) | ![Tema Aurora](docs/screenshots/horizonte-aurora.png) |
+| ![Tema Pistache](docs/screenshots/horizonte-pistache.png) | ![Tema Crepúsculo](docs/screenshots/horizonte-crepusculo.png) |
 
 Os prints mostram o **modo demonstração**, que já vem ligado: agenda e cotas de exemplo, para o
 pacote parecer vivo assim que é instalado.
@@ -45,7 +45,7 @@ clique com o botão direito no widget > **Atualizar skin**. Reinstalar mantém o
 | --- | --- |
 | `Idioma` | `en` inglês (padrão do pacote) ou `pt` português. Datas, rótulos e menus. Hora em 24 h |
 | `Demo` | `1` dados de exemplo (padrão) ou `0` os seus dados |
-| `Tema` | `expressivo` (cartões chapados, padrão), `pistache` (o mesmo, claro), `aurora` (vidro escuro, o relógio flutua sobre o papel de parede) |
+| `Tema` | `expressivo` (cartões chapados, padrão), `pistache` (o mesmo, claro), `crepusculo` (cartões escuros translúcidos com um acento âmbar, o relógio flutua sobre o papel de parede) |
 | `Scale` | tamanho, por exemplo `1.25` |
 | `Animacoes` | `1` com transições, `0` sem |
 | `MaxItems` | quantos eventos a Agenda lista antes do "mais N eventos" |

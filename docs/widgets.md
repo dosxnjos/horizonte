@@ -97,7 +97,7 @@ Todo widget inclui, nesta ordem: `Variaveis.inc` (que inclui `Settings.inc` e `L
 | `Tokens.inc` | inclui `Tokens-#Tema#.inc` e `Idioma-#Idioma#.inc`, e fixa o que não muda com o tema: cores do contrato Claude (`ClaudeOk/Alerta/Critico/Velho` e `ClaudeTrilho`, o `#46464E` do trilho das barras da bandeja), saúde de fonte (`CorAlerta`, `CorCritico`) e fontes (`FonteDisplay`, `FonteTexto`, `FonteMono`) |
 | `Tokens-expressivo.inc` | tema Expressivo, esquema "Ardósia" do protótipo: `CorS`, `CorSHi`, `CorOn`, `CorOnV`, `CorPri`, `CorOnPri`, `CorSol`, `CorOnSol`, `CorSold`, `CorOnSold`, `CorCalm`, `CorOnCalm`, `CorAgPes/Cor/Fer`, `CorCtl`, `CorOnCtl`, alfas (`AlfaChip`, `AlfaDoisPontos`) e raios (`RaioCartao` vale para Agenda, Máquina e Claude). Cores em `R,G,B`; o alfa se acrescenta no uso: `#CorOnPri#,153` |
 | `Tokens-pistache.inc` | `Tema=pistache`: o mesmo Expressivo no esquema claro "Pistache" do protótipo (`body[data-wall="pistache"]`). Só cores |
-| `Tokens-aurora.inc` | `Tema=aurora` ([protótipo](../design/horizonte-v1-aurora.html)): vidro escuro, acento âmbar único. Superfícies em `R,G,B,A` (por isso **nunca** escrever `#CorS#,alfa` nem `#CorSHi#,alfa` num meter); o relógio sem cartão (`CorPri` com alfa 1, para o arrasto continuar pegando); raio 14; o cartão Dia sem troca de forma e com o AGORA no vidro, pelas variáveis `DiaFundo<Papel>`, `DiaTexto<Papel>` e `DiaRaios<Papel>=TL,TR,BR,BL` que o `Dia.lua` lê (vazias = o `PAPEL` do Expressivo). Sem blur, grão nem hairline (o Rainmeter não faz) |
+| `Tokens-crepusculo.inc` | `Tema=crepusculo` ("Dusk" no README em inglês): cartões escuros translúcidos, acento âmbar único. Nasceu como 1ª tentativa do Aurora e ficou como esquema próprio (12/11/2026); o **Aurora fiel ao [protótipo](../design/horizonte-v1-aurora.html)** (vidro granulado, luz na borda, anéis em gradiente) é uma estética inteira e está pendente numa issue. Superfícies em `R,G,B,A` (por isso **nunca** escrever `#CorS#,alfa` nem `#CorSHi#,alfa` num meter); o relógio sem cartão (`CorPri` com alfa 1, para o arrasto continuar pegando); raio 14; o cartão Dia sem troca de forma e com o AGORA num tom âmbar escuro, pelas variáveis `DiaFundo<Papel>`, `DiaTexto<Papel>` e `DiaRaios<Papel>=TL,TR,BR,BL` que o `Dia.lua` lê (vazias = o `PAPEL` do Expressivo) |
 | `Idioma-pt.inc` / `Idioma-en.inc` | textos fixos dos `.ini` (menus, rótulo "Entrar", tooltips) em variáveis `Txt*` |
 | `Estilos.inc` | MeterStyles: `EstTexto`, `EstDisplay`, `EstMono`, `EstDigito`, `EstChip` |
 | `Lua\carregar.lua` | carregador de módulos (ASCII, por `dofile`); aceita módulo em UTF-16 LE com BOM e passa o ambiente do widget (onde mora o `SKIN`) para o módulo |
@@ -270,7 +270,7 @@ embaixo a linha do dia. Lê `agenda.json` (eventos com hora; os de dia inteiro f
   máscara `BotaoMasc` fica em 0,0, porque o `BotaoRotulo` se posiciona relativo a ela.
 - **Modo privado**: com `Privado=1` (cadeado da Agenda) os títulos de evento do cartão e o tooltip
   viram "Compromisso". O clique no cadeado manda `!SetVariable Privado` e
-  `!CommandMeasure mLeitor "Privado(0|1)"` para o Dia; na carga, o Dia lê `Privado` do `Local.inc`.
+  `!CommandMeasure mLeitor "Privado(0|1)"` para o Dia; na carga, o Dia lê `Privado` das variáveis (`Settings.inc` ou `Local.inc`).
 - **Linha do dia**: 07–21h por padrão (`LinhaDe`/`LinhaAte`); alarga até a hora cheia do 1º/último
   evento de hoje, até o agora (de noite) e até o reset do Claude se ele cair ainda hoje; antes das
   07h vira 00–24. Blocos na cor da agenda (`CorAgPes/Cor/Fer` pelo id da fonte; fonte desconhecida
@@ -365,9 +365,10 @@ Cartão de 380 px lógicos (fundo `CorS`, raio 32), altura pela lista (`DynamicW
   **Caminho limpo futuro:** um campo opcional `serie` no contrato (derivado do UID) trocaria a
   heurística por identidade; fica para quando mexerem no `agenda_sync`.
 - **Modo privado**: o cadeado (ou o menu "Modo privado") troca todos os títulos, inclusive o
-  tooltip, por "Compromisso". O estado vai para `Privado=0/1` no `Local.inc` por `!WriteKeyValue`
-  (sem `Local.inc`, o Lua cria o arquivo em UTF-16 LE com BOM só com `[Variables]` antes do bang;
-  conferido em 02/10) e sobrevive a refresh e reinício. O clique também avisa o Dia
+  tooltip, por "Compromisso". O estado vai para `Privado=0/1` por `!WriteKeyValue` no `Local.inc`, se
+  ele existir (ele é lido por último e venceria), ou no `Settings.inc` (quem instalou pelo `.rmskin`).
+  Se o arquivo faltar, o Lua cria em UTF-16 LE com BOM só com `[Variables]` antes do bang (conferido
+  em 02/10). Sobrevive a refresh e reinício. O clique também avisa o Dia
   (`Privado(0|1)`), que esconde o título do cartão; conferido em 03/10.
 - **Altura**: o estado mais alto medido (8 eventos hoje, 4 vãos, faixa com 2 fontes) dá ~720 px
   lógicos; o pior teórico (8 eventos em 8 dias + faixa de 3 fontes) ~790. Com `KeepOnScreen=1`, um
@@ -414,7 +415,7 @@ sobrescrever): `MaxItems` (8), `VaoMin` (45 min), `DiasLista` (14), `FontesOcult
 | --- | --- |
 | `!SetVariable DebugAgenda "<json>" Horizonte\Agenda` e `!CommandMeasure mLeitor "Recarregar()" Horizonte\Agenda` | lê uma fixture (vazio volta ao real) |
 | `!CommandMeasure mLeitor "Forcar('14:37')" Horizonte\Agenda` | "hoje, a essa hora", **animando** a troca; `Forcar('')` volta à hora real |
-| `!CommandMeasure mLeitor "AlternarPrivado()" Horizonte\Agenda` | o mesmo que clicar no cadeado (grava no `Local.inc`) |
+| `!CommandMeasure mLeitor "AlternarPrivado()" Horizonte\Agenda` | o mesmo que clicar no cadeado (grava no `Local.inc` ou no `Settings.inc`) |
 | `!CommandMeasure mLeitor "Esquecer()" Horizonte\Agenda` | esquece o último estado bom e relê (prova "sem arquivo desde o início") |
 | `!CommandMeasure mLeitor "Entrada()" Horizonte\Agenda` | repete a entrada |
 
@@ -575,7 +576,7 @@ nome; "parado" = arquivo sem regravar há mais de `FonteParadaS` (900 s), sem ol
 | cor | verde `#30A46C` < 75 ≤ âmbar `#F5A623` < 95 ≤ vermelho `#E5484D` (12/11/2026, pedido do dono; era 60/85). Disco interno na cor a 15 %: círculo, cookie (10 lóbulos, 0,05) no âmbar, sol (0,1) no vermelho. Trilho na cor a 24 % |
 | zoom | de 95 em diante o arco mostra `(p-95)/5` da volta (mínimo de 8°, como a bandeja: 95 % é "início da cauda", não anel vazio) e aparece o **ponto marcador** acima do topo, na cor do arco. Sem texto |
 | dado velho | `Stale=true` da bandeja: anel, disco e barras daquela conta em cinza `#747684`, número a 62 %, e a idade **sempre visível** embaixo do número ("há 21 min"); idade = `AgeS` + (agora − `savedAt`). `AgeS` nulo: "antiga" no anel e "medição antiga" na legenda. Nenhum limiar próprio de idade (o widget nunca fica cinza com o ícone colorido) |
-| bandeja parada | `savedAt` com mais de `TrayParadoS` (150 s) **e** o processo `Claude Usage Tray.exe` ausente (`Measure=Process`, consultado só quando o `savedAt` passou do limite): anel cinza com a idade, e a legenda vira um **bloco cinza** "bandeja parada, dados de 00:10. Clique para abrir." O clique roda o `TrayExe` (expandido pelo Lua, conferido com `io.open`; com a bandeja viva não lança nada). Sem `TrayExe` válido, o bloco diz para ajustar no `Local.inc` |
+| bandeja parada | `savedAt` com mais de `TrayParadoS` (150 s) **e** o processo `Claude Usage Tray.exe` ausente (`Measure=Process`, consultado só quando o `savedAt` passou do limite): anel cinza com a idade, e a legenda vira um **bloco cinza** "bandeja parada, dados de 00:10. Clique para abrir." O clique roda o `TrayExe` (expandido pelo Lua, conferido com `io.open`; com a bandeja viva não lança nada). Sem `TrayExe` válido, o bloco diz para ajustar no `Settings.inc` |
 | nome da conta | `ApelidoConta<Num>` (o `Num` do snapshot, não a posição) ou "conta N". **E-mail e `Org` nunca aparecem**, nem no log |
 | legenda | "5h, conta A, renova 14:59 (em 22 min)": `ResetsAt` (UTC) → hora local; outro dia ganha o dia curto ("sex 14:59"). `ResetsAt` vazio: "janela não iniciada"; já passado (snapshot velho): "renovou às 00:10". Velho: "sem medição nova há 21 min (última às 00:16)". Quebra em 282 px e o cartão cresce |
 | status ≠ ok | por texto, nunca por cor: `expired` "token expirado", `relogin` "re-login preciso", `notoken` "sem credencial salva", `apikey` "conta usa API key", `offline` "API indisponível", `ratelimited` "limite da API (429)", `nodata` "sem medição recente", outro "sem dados". Na ativa vai no fim da legenda; sem barras, o anel fica "–" e a legenda diz só o status. Na inativa: com barras, vira a etiqueta no lugar de "inativa"; sem barras, uma linha de texto no lugar das barras |

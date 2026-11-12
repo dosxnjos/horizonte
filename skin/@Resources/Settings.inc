@@ -37,7 +37,7 @@ Demo=1
 ; Theme (Tema):
 ;   expressivo = solid tonal cards, the Day card changes shape and color with its state (default)
 ;   pistache   = the same design in a light pistachio scheme
-;   aurora     = dark translucent glass, quiet and minimal, the clock floats over the wallpaper
+;   crepusculo = "Dusk": dark translucent cards with one amber accent, the clock floats over the wallpaper
 Tema=expressivo
 
 ; Size multiplier for every widget (1 = default; 1.25 = 25% bigger).
