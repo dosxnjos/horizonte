@@ -12,6 +12,9 @@ skin/@Resources/Local.inc
 # índice de roadmap gerado para o vault pessoal (texto do gerador cita outros projetos)
 roadmap/README.md
 
+# instalador gerado por tools/empacotar.py (vai como anexo da Release, não no repo)
+dist/
+
 # ambiente Python
 .venv/
 __pycache__/

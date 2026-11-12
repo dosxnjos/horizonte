@@ -75,8 +75,9 @@ local function difDias(a, b) return math.floor((a - b) / 86400 + 0.5) end
 local function rotuloDia(dia, dia0)
   local d = os.date('*t', dia + 43200)
   local n = difDias(dia, dia0)
-  if n == 0 then return 'Hoje' end
-  if n == 1 then return 'amanhã, ' .. comum.DIAS[d.wday] end
+  if n == 0 then return comum.T('Hoje') end
+  if n == 1 then return comum.T('amanhã, ') .. comum.DIAS[d.wday] end
+  if comum.en then return comum.DIAS[d.wday] .. ', ' .. comum.diaMes(dia + 43200) end
   return comum.DIAS[d.wday] .. ', ' .. d.day .. '/' .. d.month
 end
 
@@ -97,11 +98,11 @@ local function classe(status)
 end
 
 local function rotuloStatus(st)
-  if st == 'offline' then return 'offline' end
-  if st == 'formato' then return 'com feed inválido' end
-  if st == 'sem_credencial' then return 'sem credencial' end
+  if st == 'offline' then return comum.T('offline') end
+  if st == 'formato' then return comum.T('com feed inválido') end
+  if st == 'sem_credencial' then return comum.T('sem credencial') end
   local cod = tostring(st or ''):match('^http(%d+)$')
-  if cod then return 'com erro ' .. cod end
+  if cod then return comum.T('com erro ') .. cod end
   return tostring(st)
 end
 
@@ -116,21 +117,21 @@ local function saude(ag)
   local L = S.leitor
   if not S.dados then
     if L.erro == 'sem arquivo' or not L.erro then
-      linhas[1] = 'Agenda indisponível. O agenda-sync ainda não gravou o agenda.json; rode agenda-sync sync'
+      linhas[1] = comum.T('Agenda indisponível. O agenda-sync ainda não gravou o agenda.json; rode agenda-sync sync')
     elseif L.erro:match('^schemaVersion') then
-      linhas[1] = 'Agenda indisponível. O agenda.json é de outra versão; atualize o Horizonte'
+      linhas[1] = comum.T('Agenda indisponível. O agenda.json é de outra versão; atualize o Horizonte')
     else
-      linhas[1] = 'Agenda indisponível. O agenda.json está ilegível; rode agenda-sync sync'
+      linhas[1] = comum.T('Agenda indisponível. O agenda.json está ilegível; rode agenda-sync sync')
     end
     pior = 'critico'
   elseif L.erro == 'sem arquivo' then
-    linhas[1] = 'Arquivo da agenda sumiu. Mostrando a última leitura; rode agenda-sync sync'
+    linhas[1] = comum.T('Arquivo da agenda sumiu. Mostrando a última leitura; rode agenda-sync sync')
     pior = 'alerta'
   elseif L.erro and L.erro:match('^schemaVersion') then
-    linhas[1] = 'Arquivo da agenda de outra versão. Mostrando a última leitura; atualize o Horizonte'
+    linhas[1] = comum.T('Arquivo da agenda de outra versão. Mostrando a última leitura; atualize o Horizonte')
     pior = 'critico'
   elseif L.erro then
-    linhas[1] = 'Arquivo da agenda ilegível. Mostrando a última leitura'
+    linhas[1] = comum.T('Arquivo da agenda ilegível. Mostrando a última leitura')
     pior = 'alerta'
   end
   local fontes = S.dados and type(S.dados.sources) == 'table' and S.dados.sources or {}
@@ -142,14 +143,14 @@ local function saude(ag)
       local d = {cl = cl}
       if cl == 'ok' then
         d.cor = corFonte(f.id, f.cor)
-        d.tip = id .. ': sincronizada'
+        d.tip = comum.T(id) .. comum.T(': sincronizada')
       else
         d.cor = cl == 'critico' and cor('CorCritico') or cor('CorAlerta')
-        d.tip = id .. ': ' .. tostring(f.erro or rotuloStatus(f.status))
-        local frase = (NOME_FONTE[f.id] or maiuscula(f.nome or id)) .. ' ' .. rotuloStatus(f.status)
+        d.tip = comum.T(id) .. ': ' .. tostring(f.erro or rotuloStatus(f.status))
+        local frase = (NOME_FONTE[f.id] and comum.T(NOME_FONTE[f.id]) or maiuscula(f.nome or id)) .. ' ' .. rotuloStatus(f.status)
         local ok = tonumber(f.lastOkAt)
         if ok and f.status ~= 'sem_credencial' then
-          frase = frase .. ', dados de ' .. (ok >= hoje0 and comum.hhmm(ok) or os.date('%d/%m', ok))
+          frase = frase .. comum.T(', dados de ') .. (ok >= hoje0 and comum.hhmm(ok) or comum.diaMes(ok))
         end
         local det = f.erro and (' ' .. maiuscula(f.erro)) or ''
         linhas[#linhas + 1] = frase .. '.' .. det
@@ -233,14 +234,14 @@ local function colapsar(itens, dia0)
         local rot = nil
         local span = dias[#dias] - dias[1] + 1
         if maxGap == 1 and #g == span then
-          rot = 'diário'
+          rot = comum.T('diário')
         elseif uteis then
           local n = 0
           for d = dias[1], dias[#dias] do
             local wd = os.date('*t', dia0 + d * 86400 + 43200).wday
             if wd ~= 1 and wd ~= 7 then n = n + 1 end
           end
-          if n == #g then rot = 'seg a sex' end
+          if n == #g then rot = comum.T('seg a sex') end
         end
         g[1].serie, g[1].rot = true, rot
         for i = 2, #g do g[i].oculto = true end
@@ -255,13 +256,13 @@ end
 local function linhaEvento(it, ag)
   local e = it.e
   local L = {tipo = 'ev', chave = 'ev:' .. tostring(e.id)}
-  if it.allDay then L.tm = 'dia todo'
-  elseif it.ini <= ag then L.tm, L.agora = 'agora', true
+  if it.allDay then L.tm = comum.T('dia todo')
+  elseif it.ini <= ag then L.tm, L.agora = comum.T('agora'), true
   else L.tm = comum.hhmm(it.ini) end
-  local titulo = S.privado and 'Compromisso' or tostring(e.title or '')
+  local titulo = S.privado and comum.T('Compromisso') or tostring(e.title or '')
   L.tt = titulo
-  local quando = it.allDay and 'dia todo' or (comum.hhmm(it.ini) .. ' às ' .. comum.hhmm(it.fim))
-  L.tip = titulo .. ' · ' .. quando .. ' · ' .. tostring(e.source or '')
+  local quando = it.allDay and comum.T('dia todo') or (comum.hhmm(it.ini) .. comum.T(' às ') .. comum.hhmm(it.fim))
+  L.tip = titulo .. ' · ' .. quando .. ' · ' .. comum.T(tostring(e.source or ''))
   L.cor = corFonte(e.source)
   L.rec = e.recurring == true
   L.rot = it.rot
@@ -272,10 +273,10 @@ end
 
 local function textoMais(n, fimDia)
   local d = os.date('*t', fimDia + 43200)
-  local ate = d.day .. '/' .. d.month
-  if n <= 0 then return 'nada mais até ' .. ate end
-  if n == 1 then return 'mais 1 evento até ' .. ate end
-  return 'mais ' .. n .. ' eventos até ' .. ate
+  local ate = comum.en and comum.diaMes(fimDia + 43200) or (d.day .. '/' .. d.month)
+  if n <= 0 then return comum.Tf('nada mais até %s', ate) end
+  if n == 1 then return comum.Tf('mais 1 evento até %s', ate) end
+  return comum.Tf('mais %s eventos até %s', n, ate)
 end
 
 -- Monta o conteúdo da Agenda no instante ag.
@@ -286,10 +287,10 @@ local function montar(ag)
   itens = colapsar(itens, dia0)
   local L = C.linhas
   local function add(x) L[#L + 1] = x end
-  add({tipo = 'g', chave = 'g:hoje', tt = 'Hoje'})
+  add({tipo = 'g', chave = 'g:hoje', tt = comum.T('Hoje')})
   local temHoje = false
   for _, it in ipairs(itens) do if it.dia == dia0 then temHoje = true; break end end
-  if not temHoje then add({tipo = 'nada', chave = 'nada', tt = S.dados and 'nada mais hoje' or 'sem dados da agenda'}) end
+  if not temHoje then add({tipo = 'nada', chave = 'nada', tt = comum.T(S.dados and 'nada mais hoje' or 'sem dados da agenda')}) end
   local mostrados, cur, maxFim = 0, dia0, nil
   local cap = NSLOT - 1
   for i, it in ipairs(itens) do
@@ -307,7 +308,7 @@ local function montar(ag)
       if prox and prox.dia == dia0 and not prox.allDay and mostrados < CFG.maxItems
         and prox.ini - maxFim >= CFG.vaoMin * 60 then
         add({tipo = 'gap', chave = 'gap:' .. tostring(it.e.id),
-          tt = 'livre ' .. comum.hhmm(maxFim) .. ' às ' .. comum.hhmm(prox.ini) .. ', ' .. comum.duracao((prox.ini - maxFim) / 60)})
+          tt = comum.Tf('livre %s às %s, %s', comum.hhmm(maxFim), comum.hhmm(prox.ini), comum.duracao((prox.ini - maxFim) / 60))})
       end
     end
   end
@@ -527,7 +528,7 @@ end
 -- ---------------------------------------------------------------- desenho: cartão e cabeçalho
 local function desenharCabecalho(Vv)
   bang('!SetOption', 'Cartao', 'Shape', string.format('Rectangle 0,0,%s,%s,%s | Fill Color %s | StrokeWidth 0',
-    num(sc(W)), num(sc(Vv.h)), num(sc(32)), cor('CorS')))
+    num(sc(W)), num(sc(Vv.h)), num(sc(CFG.raio or 32)), cor('CorS')))
   local ha = Vv.headA
   bang('!SetOption', 'Titulo', 'FontColor', anim.alfa(cor('CorOnV'), 255, ha))
   -- pontos: alinhados à direita, o último centrado em 302
@@ -558,7 +559,7 @@ local function desenharCabecalho(Vv)
   bang('!SetOption', 'CadeadoIcone', 'FontColor', anim.alfa(anim.cor(cor('CorOnV'), cor('CorS'), p), 255, ha))
   -- Segoe Fluent Icons: E72E (Lock) / E785 (Unlock), em UTF-8 (como o ♻ do Dia)
   bang('!SetOption', 'CadeadoIcone', 'Text', S.privado and '\238\156\174' or '\238\158\133')
-  bang('!SetOption', 'Cadeado', 'ToolTipText', S.privado and 'Modo privado ligado: títulos escondidos' or 'Modo privado (esconde os títulos)')
+  bang('!SetOption', 'Cadeado', 'ToolTipText', comum.T(S.privado and 'Modo privado ligado: títulos escondidos' or 'Modo privado (esconde os títulos)'))
 end
 
 local function alvoCab(C)
@@ -831,6 +832,7 @@ function Initialize()
     CFG.dias = tonumber(var('DiasLista', '14')) or 14
     CFG.ocultas = var('FontesOcultas', 'feriados')
     CFG.releitura = tonumber(var('ReleituraS', '60')) or 60
+    CFG.raio = tonumber(var('RaioCartao', '32')) or 32
     CFG.fonteDisplay = var('FonteDisplay', 'Segoe UI Variable Display')
     CFG.fonteTexto = var('FonteTexto', 'Segoe UI Variable Text')
     CFG.fonteMono = var('FonteMono', 'Cascadia Mono')
@@ -844,7 +846,7 @@ function Initialize()
     S.forcada = hhmmParaSeg(var('DebugHora', ''))
     S.leitor = comum.leitor(comum.caminhoAgenda(), {schemaVersion = 1})
     for i = 0, NSLOT do SLOT[i] = {a = 1, dy = 0, hv = 0, sig = nil} end
-    bang('!SetOption', 'Titulo', 'Text', 'Próximos ' .. CFG.dias .. ' dias')
+    bang('!SetOption', 'Titulo', 'Text', comum.Tf('Próximos %s dias', CFG.dias))
     lerAgenda(true)
   end)
 end
@@ -915,12 +917,14 @@ function Sobre(i)
   end)
 end
 
--- Cadeado: liga/desliga o modo privado e grava no Local.inc (cria o arquivo se não existir)
+-- Cadeado: liga/desliga o modo privado e grava no Local.inc, se existir, ou no Settings.inc (cria o arquivo se não existir)
 function AlternarPrivado()
   seguro(function()
     S.privado = not S.privado
     local v = S.privado and '1' or '0'
+    -- o Local.inc (opcional) vem por último e venceria o Settings.inc: grava onde vale
     local caminho = SKIN:GetVariable('@') .. 'Local.inc'
+    if not comum.existe(caminho) then caminho = SKIN:GetVariable('@') .. 'Settings.inc' end
     local f = io.open(caminho, 'rb')
     if f then
       f:close()

@@ -1,63 +1,102 @@
 # Horizonte
 
-Um pacote de widgets para o desktop do Windows, feito em
-[Rainmeter](https://www.rainmeter.net/). Ele responde três perguntas sem você
-abrir nada:
-- o que vem agora na sua agenda;
-- se o PC está engasgando;
-- quanto sobra das suas contas Claude.
+A suite of five Rainmeter widgets for the Windows desktop that answers, at a glance:
+what is next on my agenda, is my PC choking, and how much is left of my Claude quota.
 
-> **Status: fase 2, versão 0.1 sem release.** Os cinco widgets (Relógio, Dia,
-> Agenda, Máquina, Claude) já instalam: `powershell -NoProfile -File instalar.ps1 -ComSkin`
-> liga a pasta `skin\` ao Rainmeter, e o layout pronto fica em
-> [`layouts/Horizonte`](layouts/Horizonte/Rainmeter.ini). Como ligar, posicionar e
-> depurar cada um: [docs/widgets.md](docs/widgets.md). Falta o pacote `.rmskin`; o
-> cartão Aviso é da fase 3. A visão, a arquitetura e as fases estão no
-> [roadmap](roadmap/2026-10-02-horizonte-visao-e-plano.md). O mockup interativo
-> está em [`horizonte-visao-2026-10-02.html`](horizonte-visao-2026-10-02.html):
-> baixe e abra no navegador.
+[Português](README.pt-BR.md) · [Download the .rmskin](https://github.com/dosxnjos/horizonte/releases/latest) · [Rainmeter forum thread](https://forum.rainmeter.net/viewforum.php?f=130)
 
-## Os widgets
+![Expressivo theme](docs/screenshots/horizonte-expressivo.png)
 
-| widget | mostra |
+| Pistache | Aurora |
 | --- | --- |
-| Relógio | hora, data e o próximo feriado |
-| Dia | o que está acontecendo agora, o próximo compromisso ou quanto tempo você tem livre, e a linha do dia |
-| Agenda | os próximos 14 dias de várias agendas Google, com eventos recorrentes e os horários livres |
-| Máquina | CPU, RAM, GPU, espaço livre do SSD e cotas do Google Drive para desktop |
-| Claude | uso da janela de 5h da conta ativa e das outras contas, lido do claude-usage-tray (app de bandeja, projeto à parte) |
-| Aviso | um cartão com o botão Entrar, 5 min antes da reunião |
+| ![Pistache theme](docs/screenshots/horizonte-pistache.png) | ![Aurora theme](docs/screenshots/horizonte-aurora.png) |
 
-Cada widget liga, desliga e muda de lugar sozinho. Todos dividem o mesmo tema.
+The screenshots show the built-in **demo mode**: sample agenda and sample Claude usage, so the
+suite looks alive the moment you install it.
 
-## Como os dados chegam
+## The widgets
 
-- **Agenda:** um helper em Python (`agenda_sync`) baixa os endereços iCal das
-  suas agendas, expande os eventos recorrentes e grava um `agenda.json` local.
-  Os endereços secretos ficam no Gerenciador de Credenciais do Windows, nunca em
-  arquivo. Uso: [docs/agenda_sync.md](docs/agenda_sync.md); formato do arquivo:
+| widget | what it shows |
+| --- | --- |
+| **Clock** (`Relogio`) | HH:MM with digits that roll only when they change, the date and a chip with the next holiday |
+| **Day** (`Dia`) | a card that changes shape and color with its role: *Next, in 18 min*, *Now* (with a progress wave and a **Join** button for Meet/Teams links), *Free until 15:00*. Below it, a timeline of the day with a "now" needle and a mark where your Claude 5-hour window renews |
+| **Agenda** | the next 14 days, grouped by day, with today's free gaps ("free 15:30 to 17:30, 2h"), daily series collapsed into one line ("Mon to Fri"), a health dot per calendar and a private mode (lock icon) that hides every title |
+| **Machine** (`Maquina`) | CPU, RAM, GPU and drive rings (GB free). Neutral at rest, amber/red only when something needs attention, with hysteresis so they don't flicker. Hover shows the heaviest process; click opens Task Manager / Resource Monitor / Storage |
+| **Claude** | a ring for the 5-hour window of the active account (same colors as the claude-usage-tray app) and 5h/7d bars for your other accounts |
+
+Motion is short and only on change (rolling digits, sweeping rings, the Day card morphing).
+At rest, nothing redraws: the whole suite costs about 2% of one CPU core and ~10 MB of RAM.
+
+## Install
+
+1. Install [Rainmeter](https://www.rainmeter.net/) 4.5 or newer.
+2. Download `Horizonte_<version>.rmskin` from the [latest release](https://github.com/dosxnjos/horizonte/releases/latest) and double-click it.
+3. The Clock loads by itself. Load the other four from the Rainmeter tray icon > **Skins** > **Horizonte**,
+   or load all five at once from **Manage** > **Layouts** > **Horizonte** > **Load**
+   (careful: loading a layout replaces the skins you have open now).
+4. Drag each widget where you want it.
+
+## Settings
+
+Everything lives in one file: `Documents\Rainmeter\Skins\Horizonte\@Resources\Settings.inc`
+(right-click a widget > **Edit skin** opens the folder). Instructions are inside, in English.
+Save, then right-click > **Refresh skin**. Reinstalling or upgrading keeps your values.
+
+| setting | values |
+| --- | --- |
+| `Idioma` | `en` English (default) or `pt` Portuguese (Brazil). Dates, labels, menus. Times are 24 h |
+| `Demo` | `1` sample data (default) or `0` your real data |
+| `Tema` | `expressivo` (solid tonal cards, default), `pistache` (the same in a light scheme), `aurora` (dark translucent glass, the clock floats over the wallpaper) |
+| `Scale` | size multiplier, e.g. `1.25` |
+| `Animacoes` | `1` transitions on, `0` off |
+| `MaxItems` | how many events the Agenda lists before "N more events" |
+| `Discos`, `RotuloDisco<letter>` | drives with their own ring (up to 3) and their labels |
+| `ApelidoConta<N>` | nicknames for your Claude accounts |
+
+## Real data (optional)
+
+The clock and the Machine widget always show real values. The agenda and the Claude quota need a
+data source; without one, the widgets say so and keep working.
+
+- **Agenda.** The widgets never touch the network. They read `%LOCALAPPDATA%\Horizonte\agenda.json`,
+  written every 10 minutes by `agenda_sync`, a small Python helper in this repo. It downloads your
+  Google Calendars' private iCal addresses, expands recurring events (RRULE, EXDATE, moved
+  occurrences) and keeps the private addresses in **Windows Credential Manager**, never in a file.
+  Setup (needs [uv](https://docs.astral.sh/uv/)): clone this repo, run
+  `powershell -NoProfile -File instalar.ps1` and then `uv run agenda-sync configurar`.
+  Details (in Portuguese): [docs/agenda_sync.md](docs/agenda_sync.md); file format:
   [docs/CONTRATOS.md](docs/CONTRATOS.md).
-- **Máquina:** medidas nativas do Rainmeter.
-- **Claude:** leitura do `snapshot.json` que o claude-usage-tray grava. O widget
-  nunca chama a API da Anthropic.
+- **Claude quota.** The widget only reads `%LOCALAPPDATA%\claude-usage-tray\snapshot.json`, written by
+  the [claude-usage-tray](https://github.com/dosxnjos/claude-usage-tray) app. It never calls any API
+  and never sees a token. `FonteClaude` points it at another file in the same format.
 
-## Privacidade
+Then set `Demo=0` in `Settings.inc`.
 
-Este repositório é público. Nele nunca entra:
-- endereço de agenda;
-- e-mail;
-- título real de compromisso;
-- arquivo de dados local.
+## Requirements
 
-`tools/varrer-segredos.sh` confere isso antes de cada commit.
+- Windows 10 or 11, Rainmeter 4.5+ (no extra plugins).
+- Fonts: Segoe UI Variable and Cascadia Mono (they come with Windows 11; on Windows 10 install
+  Cascadia Mono and the Segoe UI Variable font from Microsoft, or the text falls back to Segoe UI).
+- Optional: Python 3.14 + uv for the agenda helper; claude-usage-tray for the Claude widget.
 
-## Créditos
+## Privacy
 
-A primeira versão deste widget era uma modificação do Enigma GCal (Kaelri) /
-eclectic-tech (CC BY-NC-SA 3.0). O Horizonte é reescrito do zero e não
-reaproveita código dele, mas a ideia de juntar várias agendas numa lista vem de
-lá.
+No widget talks to the network. Calendar addresses live in Windows Credential Manager. Event
+descriptions, guest lists and e-mails never reach the widgets (the helper strips them). Account
+e-mails and organization names are never displayed. Private mode hides every title, also in tooltips.
 
-## Licença
+## For developers
+
+How each widget works, its variables and how to debug it: [docs/widgets.md](docs/widgets.md)
+(Portuguese). Known pitfalls: [docs/ARMADILHAS.md](docs/ARMADILHAS.md). Build the installer with
+`python tools/empacotar.py --versao 1.0.0`. Tests: `uv run pytest`.
+
+## Credits
+
+The first version of this widget was a mod of Enigma GCal (Kaelri) / eclectic-tech
+(CC BY-NC-SA 3.0). Horizonte is a rewrite from scratch and reuses none of that code, but the idea
+of merging several calendars into one list comes from there. JSON parsing: rxi/json.lua (MIT).
+
+## License
 
 [MIT](LICENSE)

@@ -81,7 +81,7 @@ local function limitar(x, a, b) if x < a then return a elseif x > b then return 
 local function formatar(g, v)
   if v == nil then return '–', '' end
   if g.tipo == 'disco' then
-    if v >= 999.5 then return (string.format('%.1f', v / 1024):gsub('%.', ',')), 'TB' end
+    if v >= 999.5 then return comum.decimal(string.format('%.1f', v / 1024)), 'TB' end
     return tostring(math.floor(v + 0.5)), 'GB'
   end
   return tostring(math.floor(v + 0.5)), '%'
@@ -426,7 +426,7 @@ local function quantizar(g, bruto)
 end
 
 local function legendaRam(usado)
-  return (string.format('%.1fG', usado / GIB):gsub('%.', ','))
+  return comum.decimal(string.format('%.1fG', usado / GIB))
 end
 
 -- Lê um anel e devolve (carga 0..100 para a faixa, valor mostrado, fração do arco, extras)
@@ -449,25 +449,25 @@ local function lerAnel(g)
     if fz then usado = total * fz / 100 end
     local q = quantizar(g, v)
     g.sub = legendaRam(total * q / 100)
-    g.tip = string.format('RAM: %s de %s em uso (%d%%)', legendaRam(usado), legendaRam(total), math.floor(v + 0.5))
+    g.tip = comum.Tf('RAM: %s de %s em uso (%d%%)', legendaRam(usado), legendaRam(total), math.floor(v + 0.5))
     return v, q, q / 100
   else
     local livre, total = valorMedida(g.medida), valorMedida(g.medida .. 'Total')
     if total <= 0 then
-      g.tip = g.letra .. ' indisponível'
+      g.tip = g.letra .. comum.T(' indisponível')
       g.dica, g.sub = g.tip, ''
       return 0, nil, 0
     end
-    g.sub = 'livres'
+    g.sub = comum.T('livres')
     local gb = livre / GIB
     if fz then gb = fz end
     local totGb = total / GIB
     gb = limitar(gb, 0, totGb)
     local q = quantizar(g, gb)
     local usado = (1 - gb / totGb) * 100
-    g.tip = string.format('%s (%s): %d GB livres de %d GB, %d%% usado', g.rotulo, g.letra,
+    g.tip = comum.Tf('%s (%s): %d GB livres de %d GB, %d%% usado', g.rotulo, g.letra,
       math.floor(gb + 0.5), math.floor(totGb + 0.5), math.floor(usado + 0.5))
-    g.dica = string.format('%s %d de %d GB livres', g.letra, math.floor(gb + 0.5), math.floor(totGb + 0.5))
+    g.dica = comum.Tf('%s %d de %d GB livres', g.letra, math.floor(gb + 0.5), math.floor(totGb + 0.5))
     return usado, q, 1 - q / totGb
   end
 end
@@ -585,7 +585,7 @@ local function textoSeguro(s)
 end
 
 local function tamanho(bytes)
-  if bytes >= GIB then return (string.format('%.1f GB', bytes / GIB):gsub('%.', ',')) end
+  if bytes >= GIB then return comum.decimal(string.format('%.1f GB', bytes / GIB)) end
   return string.format('%d MB', math.floor(bytes / 1024 ^ 2 + 0.5))
 end
 
@@ -604,13 +604,13 @@ local function atualizarDica()
       else
         t = '…'
       end
-      if S.cpuReserva then t = t .. ' (aprox.)' end
+      if S.cpuReserva then t = t .. comum.T(' (aprox.)') end
     elseif g.tipo == 'ram' then
       bang('!UpdateMeasure', 'mTopRam')
       local m = SKIN:GetMeasure('mTopRam')
       local nome, v = m and m:GetStringValue() or '', m and m:GetValue() or 0
       if nome ~= '' and v > 0 then
-        t = 'maior: ' .. textoSeguro(nome) .. ' ' .. tamanho(v)
+        t = comum.T('maior: ') .. textoSeguro(nome) .. ' ' .. tamanho(v)
       else
         t = '…'
       end
@@ -721,7 +721,7 @@ local function montar()
   for n, letra in ipairs(listaDiscos()) do
     local i = 3 + n
     local g = novoAnel(i, 'disco', letra, var('RotuloDisco' .. letra:sub(1, 1), letra))
-    g.letra, g.rotulo, g.medida, g.sub = letra, g.cap, 'mDisco' .. n, 'livres'
+    g.letra, g.rotulo, g.medida, g.sub = letra, g.cap, 'mDisco' .. n, comum.T('livres')
     bang('!SetOption', g.medida, 'Drive', letra)
     bang('!SetOption', g.medida .. 'Total', 'Drive', letra)
     bang('!EnableMeasure', g.medida)

@@ -2,13 +2,13 @@
 tipo: roadmap
 status: aprovado o rumo (02/10); nada executado no skin ainda
 data: 2026-10-02
-atualizado: 2026-10-02 (decisões do Gabriel aplicadas, § 6)
-origem: sessão 528c8c6b (pedido do Gabriel: "quais melhorias você faria… quero ideias")
+atualizado: 2026-10-02 (decisões do dono aplicadas, § 6)
+origem: pedido do dono ( "quais melhorias você faria… quero ideias")
 ---
 
 # Horizonte: do widget "sem graça" ao painel de bordo do desktop
 
-> **Para quem nunca viu a conversa.** O Gabriel usa um skin Rainmeter
+> **Para quem nunca viu a conversa.** O dono usa um skin Rainmeter
 > (`Documents\Rainmeter\Skins\GoogleCalendar`) com relógio e os próximos eventos de
 > três agendas Google. Ele "serve, mas é sem graça". O código está desorganizado.
 > Ele pediu ideias com liberdade total para reconstruir, inclusive trocando de
@@ -35,7 +35,7 @@ origem: sessão 528c8c6b (pedido do Gabriel: "quais melhorias você faria… que
 [`../horizonte-visao-2026-10-02.html`](../horizonte-visao-2026-10-02.html). É
 standalone e abre direto no navegador.
 
-> **Decisão de forma (Gabriel, 02/10):** não é um widget único. É um **pacote
+> **Decisão de forma (dono, 02/10):** não é um widget único. É um **pacote
 > novo** (suite Rainmeter `Horizonte`, distribuída como `.rmskin`) com **vários
 > widgets separados**. Cada um tem config própria, posição e liga/desliga
 > independentes, e todos dividem o mesmo `@Resources` (tokens, Lua, estilos). O
@@ -52,7 +52,7 @@ standalone e abre direto no navegador.
 
 | # | achado | evidência | impacto |
 | --- | --- | --- | --- |
-| 1 | **Uma agenda inteira sumiu calada.** `GoogleCalendar2` responde **HTTP 404** (página HTML "Error 404") | feed baixado em 02/10; `Reader.lua` marca "Invalid Feed Format" e o merge (`Update()`, linhas 87-99) sobrescreve `Feeds[1]`, apagando o erro | compromissos dessa agenda não aparecem e nada avisa. **Causa:** o endereço tinha expirado; o Gabriel regerou em 02/10. O defeito de esconder o erro continua no código |
+| 1 | **Uma agenda inteira sumiu calada.** `GoogleCalendar2` responde **HTTP 404** (página HTML "Error 404") | feed baixado em 02/10; `Reader.lua` marca "Invalid Feed Format" e o merge (`Update()`, linhas 87-99) sobrescreve `Feeds[1]`, apagando o erro | compromissos dessa agenda não aparecem e nada avisa. **Causa:** o endereço tinha expirado; o dono regerou em 02/10. O defeito de esconder o erro continua no código |
 | 2 | **Eventos recorrentes nunca aparecem** (daily, semanal, aniversário) | o `.ics` do Google não expande RRULE; `?singleevents=true&orderby=…` são parâmetros da API v3, ignorados no `.ics` (mesmo tamanho com e sem). Das 43 séries do GoogleCalendar1, 6 estão ativas e são todas descartadas pelo filtro `DateEnd > now` (`Reader.lua:89, :291`) | a reunião mais frequente da semana é a que o widget não mostra |
 | 3 | **Rede desproporcional:** ~363 KB/min ≈ **520 MB/dia** ≈ 15 GB/mês para 8 linhas | 3 WebParser a cada 60 s (`Gcalendar.ini:180-208`). O calendário de **feriados** (102 KB) também é baixado a cada minuto. O `DTSTAMP` muda a cada download, então `Raw ~= Feeds[f].Raw` (`:125`) sempre reprocessa as 865 VEVENTs | rede e CPU gastos à toa; ruim em 4G/notebook |
 | 4 | **URLs secretas em texto puro** no `[Variables]` do `Gcalendar.ini` | `private-…/basic.ics` | quem lê o arquivo lê a agenda; **regerar** os endereços |
@@ -94,7 +94,7 @@ reaproveita código, mas mantém o crédito de cortesia.
 
 ---
 
-## 1. O sonho (norte): o "painel de bordo" do Gabriel
+## 1. O sonho (norte): o "painel de bordo" do dono
 
 Hoje são três coisas desconexas: o skin do Rainmeter, o ícone de bandeja do
 Claude e o `claude-switch-gui`. O norte é **um produto só, com quatro
@@ -122,7 +122,7 @@ superfícies**, todas lendo o mesmo estado:
 ### Os momentos que justificam o produto
 
 - **A daily volta a aparecer.** Recorrência expandida de verdade, com ♻ e a
-  série colapsada numa linha só ("Daily produto ♻ seg–sex", mostrando só a
+  série colapsada numa linha só ("Daily do time ♻ seg–sex", mostrando só a
   próxima). Sem isso, uma daily ocupa a lista inteira.
 - **O dia numa olhada.** A agulha âmbar anda pela régua 07–21h. Os buracos
   aparecem escritos: "livre 16:00–18:00 · 2h", o lugar óbvio para uma sessão
@@ -135,7 +135,7 @@ superfícies**, todas lendo o mesmo estado:
   - "dia livre a partir de 17:30 · amanhã 09:00 Daily".
 - **Combustível do Claude.** O anel fala a língua da bandeja (mesmas cores,
   zoom 95→100). A partir de 60% ele responde "posso abrir mais uma sessão?":
-  `~acaba 14:40 · ♻ 14:59` (hora local: o `ResetsAt` vem em UTC). Se não der tempo: "dados tem folga (23%): troque
+  `~acaba 14:40 · ♻ 14:59` (hora local: o `ResetsAt` vem em UTC). Se não der tempo: "conta B tem folga (23%): troque
   pela bandeja".
 - **Reset do Claude dentro da linha do dia.** Um tick ♻ às 14:59 aparece na
   régua. Se o reset cai num vão livre, o vão ganha a dica "sessão longa de
@@ -145,7 +145,7 @@ superfícies**, todas lendo o mesmo estado:
   60+ dias", via `FolderInfo`. É o raciocínio de giro de estoque aplicado ao SSD.
 - **Discos escolhidos pelo usuário:** uma lista em `Variaveis.inc` define quais
   unidades aparecem, com rótulo fixo por unidade (`C:` = "Windows", `G:` =
-  "Drive"). **Padrão: só o C:** (decisão do Gabriel, 02/10). O rótulo do volume
+  "Drive"). **Padrão: só o C:** (decisão do dono, 02/10). O rótulo do volume
   nunca é lido, porque o do Google Drive contém o e-mail.
 - **Quem está pesando:** hover no anel da CPU mostra "chrome 18%"; no da RAM,
   "maior: msedge 1,9 GB".
@@ -250,8 +250,8 @@ clique.
 | `Horizonte\Relogio` | hora, data em pt-BR, chip do próximo feriado | measure `Time` + `agenda.json` (só `proximoFeriado`) | X=0, Y=197: **onde o skin antigo está hoje** |
 | `Horizonte\Dia` | cartão agora/próximo/livre + linha do dia | `agenda.json` | logo abaixo do Relógio |
 | `Horizonte\Agenda` | lista de 14 dias, vãos livres, pontos de saúde das fontes, frescor | `agenda.json` | abaixo do Dia (a mesma coluna de hoje) |
-| `Horizonte\Maquina` | anéis de CPU, RAM, GPU e C: (GB livres), barras das cotas do Drive | measures nativos | livre; o Gabriel decide depois |
-| `Horizonte\Claude` | anel 5h da conta ativa + barras das inativas | `snapshot.json` do tray | livre; o Gabriel decide depois |
+| `Horizonte\Maquina` | anéis de CPU, RAM, GPU e C: (GB livres), barras das cotas do Drive | measures nativos | livre; o dono decide depois |
+| `Horizonte\Claude` | anel 5h da conta ativa + barras das inativas | `snapshot.json` do tray | livre; o dono decide depois |
 | `Horizonte\Aviso` | cartão T−5 com Entrar | ativado pelo `Dia` | canto inferior direito, só quando há reunião |
 | `Horizonte\Fio` | linha do dia sobre a barra de tarefas | variáveis empurradas pelo `Dia` | experimento (fase 4) |
 
@@ -356,11 +356,11 @@ uma vez fica lá mesmo se for apagado depois.
 - **fase 0:** as URLs saem do skin para
   `%APPDATA%\Rainmeter\Secrets\GoogleCalendar.inc`;
 - **da fase 1 em diante:** ficam só no Gerenciador de Credenciais, gravadas pelo
-  próprio Gabriel com `agenda-sync configurar` (entrada oculta). A agenda
+  próprio dono com `agenda-sync configurar` (entrada oculta). A agenda
   `feriados` é pública e a URL dela fica no `config.toml`;
 - **backup opcional** num cofre de segredos pessoal.
 
-**Apelidos** (Gabriel, 02/10). Ficam no `config.toml` local:
+**Apelidos** (dono, 02/10). Ficam no `config.toml` local:
 
 | fonte | apelido | cor |
 | --- | --- | --- |
@@ -376,14 +376,14 @@ O código só conhece os apelidos.
 
 ### Execução (iniciada em 02/10/2026)
 
-**Decisão do Gabriel:** pacote **novo do zero**. O skin antigo não recebe
+**Decisão do dono:** pacote **novo do zero**. O skin antigo não recebe
 polimento, então a fase 0 encolheu para o corte de rede.
 
 Passos:
 - [x] **Fase 0, rede.** No skin antigo, `ReaderUpdateRate=900` e feriados com
   `UpdateRate=86400`. Backup em `Gcalendar.ini.bak`, ao lado do original. Foi
   conferido em 02/10 que as 3 fontes respondem `BEGIN:VCALENDAR`: a corporativa
-  voltou depois que o Gabriel regerou o endereço.
+  voltou depois que o dono regerou o endereço.
 - [x] **Spikes** de Rainmeter: leitura de JSON pelo Lua, Container como máscara,
   escala de DPI, contador de CPU, junction. Os resultados estão em
   [§ Resultado dos spikes](#resultado-dos-spikes).
@@ -417,7 +417,7 @@ Passos:
     descarregado (`Active=0`) quando a integração começou, e a pasta dele continua lá.
     **Decisão técnica** (opus, confiança média): a Agenda não cabe empilhada sob o Dia (sobravam
     94 px até a barra de tarefas), então ganhou coluna própria e `MaxItems=6` no `Local.inc`.
-    **Reverteria:** o Gabriel preferir a coluna única; nesse caso, `Y=0` e `MaxItems=2`.
+    **Reverteria:** o dono preferir a coluna única; nesse caso, `Y=0` e `MaxItems=2`.
     Shim de DPI **não aplicado**: está documentado como ligar e desligar. Detalhe:
     [widgets.md § Layout](../docs/widgets.md#layout-horizonte).
   - [ ] **Pendente para fechar a fase:**
@@ -433,7 +433,7 @@ Passos:
 Os tokens do tema Expressivo saem fixos (esquema "Ardósia" do protótipo). Derivar
 as cores do papel de parede fica para a v2.
 
-**Cadência dos feriados: semanal** (`intervaloFeriadosH=168`). O Gabriel
+**Cadência dos feriados: semanal** (`intervaloFeriadosH=168`). O dono
 questionou o "1x por dia" em 02/10, e a decisão técnica é do fable.
 - O calendário público de feriados do Google muda poucas vezes por ano: quando sai
   o calendário oficial do ano seguinte, ou quando um feriado ou ponto facultativo é
@@ -476,7 +476,7 @@ só o que vale até o pacote chegar. Backup `Gcalendar.ini.bak` antes de mexer.
 
 **Segredos**
 - URLs para `%APPDATA%\Rainmeter\Secrets\GoogleCalendar.inc` via `@Include`.
-- O endereço `corporativo` **já foi regerado pelo Gabriel em 02/10**. O 404
+- O endereço `corporativo` **já foi regerado pelo dono em 02/10**. O 404
   vinha de um endereço expirado.
 - O `pessoal` nunca saiu desta máquina; regerar é opcional.
 
@@ -593,7 +593,7 @@ A invariante nº 5 do `CLAUDE.md` do tray é atualizada junto.
     notebook);
   - *a provar:* não rouba o foco.
 - **Ctrl+Alt+M** por `.lnk` no Menu Iniciar. *A provar*; plano B: AutoHotkey, por
-  decisão do Gabriel.
+  decisão do dono.
 - Hover "quem está pesando".
 - Disco em dias de cobertura e estoque parado de Downloads.
 - Autonomia do Claude, calculada sobre **valores diferentes**, não só leituras
@@ -636,10 +636,10 @@ Opcional nesta fase: **Calendar API v3** com OAuth de app instalado, que traz:
 | Rainmeter como 1º renderizador; app próprio como norte com portão | média-alta | WebView2 plugin medir ≤80 MB e resolver a #17; ou spike Tauri provar Win+D |
 | Recorrência num helper Python, nunca em Lua | alta | Python barrado por antivírus → mesmo contrato em PowerShell 7 + Ical.Net |
 | Contratos JSON neutros entre dados e desenho | alta | nenhuma prevista |
-| Anéis de sistema neutros (cor só com histerese) | média | o Gabriel preferir cor sempre |
+| Anéis de sistema neutros (cor só com histerese) | média | o dono preferir cor sempre |
 | Ponto do zoom 95 por fora do anel, porque o centro tem o número | média | teste visual mostrando que o número sozinho já separa 98 de 100 |
 
-## 6. Decisões do Gabriel
+## 6. Decisões do dono
 
 **Respondidas em 02/10/2026:**
 
@@ -655,7 +655,7 @@ Opcional nesta fase: **Calendar API v3** com OAuth de app instalado, que traz:
 **Em aberto:**
 1. **Fase 5 / Calendar API:** só depois de 2 semanas com o pacote.
 2. **Atalho por AutoHotkey,** só se o `.lnk` falhar na fase 3.
-3. **Direção estética: dois temas no mesmo pacote** (Gabriel, 02/10).
+3. **Direção estética: dois temas no mesmo pacote** (dono, 02/10).
    - **Expressivo**, o tema em uso: combina com o momento e com o papel de parede
      dele. Base:
      [`design/horizonte-v1-expressivo.html`](../design/horizonte-v1-expressivo.html).
@@ -680,14 +680,14 @@ Opcional nesta fase: **Calendar API v3** com OAuth de app instalado, que traz:
 
 | pergunta | resposta |
 | --- | --- |
-| Apelidos das contas Claude | `produto` (conta 4) e `dados` (conta 6). O mapa número→apelido fica no `config.toml` local, nunca no repo |
+| Apelidos das contas Claude | genéricos no repo (`conta A`, `conta B`); os reais ficam só no `Local.inc` da máquina. O mapa número→apelido fica no `config.toml` local, nunca no repo |
 | Discos | escolhíveis por lista; **só o C: por enquanto**. Rótulos "Windows" (C:) e "Drive" (G:), sem apelido; H: e I: fora |
 
 ## Descartado e impraticável
 
 | o quê | motivo | decisor |
 | --- | --- | --- |
-| Widget único com tudo (o "painel" da 1ª versão deste plano) | o Gabriel prefere vários widgets num pacote; separado também elimina o aperto de altura | gabriel, 02/10 |
+| Widget único com tudo (o "painel" da 1ª versão deste plano) | o dono prefere vários widgets num pacote; separado também elimina o aperto de altura | dono, 02/10 |
 | Polir o skin antigo na fase 0 (pt-BR, visual, limpeza) | vira trabalho jogado fora com o pacote novo; a fase 0 ficou só com rede, segredo e robustez mínima | fable, 02/10 |
 | Parser ICS/RRULE escrito em Lua 5.1 | maior risco técnico; biblioteca pronta resolve | fable (evidência) |
 | Tauri agora | toolchain pesado, Win+D sem prova | fable (evidência) |

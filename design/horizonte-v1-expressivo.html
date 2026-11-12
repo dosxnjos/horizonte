@@ -374,7 +374,7 @@ input[type=range]:focus-visible{outline-offset:2px;border-radius:10px}
           <div class="ring-c"><span class="ring-n"><span class="roll" id="clN"></span><span class="ring-u">%</span></span><span class="ring-cap" id="clCap"></span></div>
         </div>
         <div class="cl-side">
-          <p class="cl-acc">dados<small>inativa</small></p>
+          <p class="cl-acc">conta B<small>inativa</small></p>
           <div class="mini"><span>5h</span><div class="bar" id="c6a"></div><span class="mono" id="c6aT">18%</span></div>
           <div class="mini"><span>7d</span><div class="bar" id="c6b"></div><span class="mono" id="c6bT">90%</span></div>
         </div>
@@ -1034,8 +1034,8 @@ function claudeUpdate() {
   const nr = RESETS.find(r => r > S.t);
   const renova = `renova ${fmt(nr)} (em ${dur(nr - S.t)})`;
   clLeg.innerHTML = stale
-    ? `<b>5h, produto</b>, sem medição nova há ${STALE} min (última às ${fmt(tMed)})`
-    : `<b>5h, produto</b>, ${renova}`;
+    ? `<b>5h, conta A</b>, sem medição nova há ${STALE} min (última às ${fmt(tMed)})`
+    : `<b>5h, conta A</b>, ${renova}`;
   clRing.host.setAttribute('aria-label', stale ? `Claude, janela de 5h: ${p}%, medição de ${STALE} minutos atrás`
     : zoom ? `Claude, janela de 5h: ${p}%, arco ampliado de 95 a 100%` : `Claude, janela de 5h: ${p}%`);
   clRing.host.setAttribute('role', 'img');

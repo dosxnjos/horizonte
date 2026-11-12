@@ -18,7 +18,13 @@ function M.caminhoDados(nome) return DADOS .. nome end
 
 -- Caminho do agenda.json. DebugAgenda (variável) troca por um arquivo de teste, para provar
 -- estados (sem feriado, feriado hoje, JSON quebrado) sem mexer no arquivo real.
+-- Demo mode (Demo=1 in Settings.inc): agenda and Claude data come from @Resources\Lua\demo.lua,
+-- generated relative to today, instead of files on disk. No helper, no tray, no network needed.
+function M.demo() return SKIN:GetVariable('Demo', '0') == '1' end
+M.DEMO_AGENDA, M.DEMO_SNAPSHOT = 'demo:agenda', 'demo:snapshot'
+
 function M.caminhoAgenda()
+  if M.demo() then return M.DEMO_AGENDA end
   local dbg = SKIN:GetVariable('DebugAgenda', '')
   if dbg and dbg ~= '' then return dbg end
   return DADOS .. 'agenda.json'
@@ -52,7 +58,12 @@ end
 
 -- ---------------------------------------------------------------- arquivo e JSON
 
+local demoMod = nil
 function M.lerArquivo(caminho)
+  if caminho == M.DEMO_AGENDA or caminho == M.DEMO_SNAPSHOT then
+    demoMod = demoMod or dofile(RES .. 'Lua\\carregar.lua')('demo')
+    return demoMod.texto(caminho == M.DEMO_AGENDA and 'agenda' or 'snapshot', M)
+  end
   local f, err = io.open(caminho, 'rb')
   if not f then return nil, err end
   local s = f:read('*a')
@@ -115,9 +126,47 @@ M.DIAS_CURTOS = {'dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'}
 M.MESES = {'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto',
   'setembro', 'outubro', 'novembro', 'dezembro'}
 
--- "sexta, 2 de outubro"
+-- ---------------------------------------------------------------- língua (Idioma=pt|en)
+-- Idioma no Variaveis.inc / Settings.inc. Texto visível passa por T('texto em pt'): em inglês sai a
+-- tradução do Lua\idioma.lua (o próprio pt quando falta). Tf('há %s', x) é para frase cuja ordem
+-- das palavras muda entre as línguas. Texto fixo dos .ini vem das variáveis Txt* do Idioma-<x>.inc.
+M.idioma = tostring(SKIN:GetVariable('Idioma', 'pt') or 'pt'):lower():sub(1, 2) == 'en' and 'en' or 'pt'
+M.en = (M.idioma == 'en')
+local EN = {}
+if M.en then
+  -- sem chamada em cauda: o carregar.lua usa getfenv(2), que não existe numa tail call
+  local ok, t = pcall(function() local m = dofile(RES .. 'Lua\\carregar.lua')('idioma'); return m end)
+  if ok and type(t) == 'table' then EN = t else M.log('erro', 'idioma.lua: ' .. tostring(t)) end
+  M.DIAS = {'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'}
+  M.DIAS_CURTOS = {'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'}
+  M.MESES = {'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+    'September', 'October', 'November', 'December'}
+end
+M.MESES_CURTOS = {'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'}
+
+function M.T(s)
+  if M.en then return EN[s] or s end
+  return s
+end
+function M.Tf(modelo, ...) return string.format(M.T(modelo), ...) end
+
+-- separador decimal: "9,3" em pt, "9.3" em en (s já vem com ponto, de string.format)
+function M.decimal(s)
+  if M.en then return s end
+  return (tostring(s):gsub('%.', ','))
+end
+
+-- dia e mês curtos: "05/10" em pt, "Oct 5" em en
+function M.diaMes(t)
+  local d = os.date('*t', t)
+  if M.en then return M.MESES_CURTOS[d.month] .. ' ' .. d.day end
+  return string.format('%02d/%02d', d.day, d.month)
+end
+
+-- "sexta, 2 de outubro" / "Friday, October 2"
 function M.dataExtensa(t)
   local d = os.date('*t', t)
+  if M.en then return M.DIAS[d.wday] .. ', ' .. M.MESES[d.month] .. ' ' .. d.day end
   return M.DIAS[d.wday] .. ', ' .. d.day .. ' de ' .. M.MESES[d.month]
 end
 
@@ -139,6 +188,7 @@ function M.diaCurtoData(iso)
   local t = M.epochDeData(iso)
   if not t then return nil end
   local d = os.date('*t', t)
+  if M.en then return M.DIAS_CURTOS[d.wday] .. ' ' .. M.MESES_CURTOS[d.month] .. ' ' .. d.day end
   return string.format('%s %02d/%02d', M.DIAS_CURTOS[d.wday], d.day, d.month)
 end
 
@@ -148,8 +198,8 @@ function M.rotuloFeriado(pf, hojeIso)
   if type(pf) ~= 'table' or type(pf.data) ~= 'string' then return nil end
   if not M.epochDeData(pf.data) then return nil end
   if pf.data < hojeIso then return nil end
-  if pf.data == hojeIso then return 'feriado hoje' end
-  return 'feriado ' .. M.diaCurtoData(pf.data)
+  if pf.data == hojeIso then return M.T('feriado hoje') end
+  return M.T('feriado ') .. M.diaCurtoData(pf.data)
 end
 
 -- ---------------------------------------------------------------- tempo e dados (Dia, Claude)
@@ -160,12 +210,20 @@ function M.inicioDoDia(t, deslocDias)
   return os.time({year = d.year, month = d.month, day = d.day + (deslocDias or 0), hour = 0, min = 0, sec = 0})
 end
 
+-- "Agora" com DebugHora=HH:MM (hoje, a essa hora), como o Relógio, o Dia e a Agenda já fazem.
+function M.agora()
+  local h, m = tostring(SKIN:GetVariable('DebugHora', '') or ''):match('^(%d%d?):(%d%d)$')
+  if not h then return os.time() end
+  return M.inicioDoDia(os.time()) + tonumber(h) * 3600 + tonumber(m) * 60
+end
+
 -- Duração em minutos, como no protótipo: "23 min", "2h", "1h30"
 function M.duracao(min)
   min = math.max(0, math.floor(min + 0.5))
   if min < 60 then return min .. ' min' end
   local h, r = math.floor(min / 60), min % 60
   if r == 0 then return h .. 'h' end
+  if M.en then return string.format('%dh %02dm', h, r) end
   return string.format('%dh%02d', h, r)
 end
 
@@ -207,6 +265,7 @@ end
 -- DebugSnapshot (variável) troca por um arquivo de teste. FonteClaude (variável, com %VAR%) troca por outro
 -- arquivo no mesmo formato, gravado por um script local (ver docs/widgets.md § Claude).
 function M.caminhoSnapshot()
+  if M.demo() then return M.DEMO_SNAPSHOT end
   local dbg = SKIN:GetVariable('DebugSnapshot', '')
   if dbg and dbg ~= '' then return dbg end
   local fonte = M.fonteClaude()

@@ -425,7 +425,7 @@ footer{max-width:1080px;margin:0 auto;padding:96px 16px 64px;color:var(--ter);fo
   var RESET = 14*60+59; // ResetsAt 17:59:59Z da janela de 5h = 14:59 em Brasília
 
   var hoje = [
-    { ini: 540, fim: 555, t: "Daily produto", cor: "--ag2", fonte: "corporativo", meet: true, rec: true },
+    { ini: 540, fim: 555, t: "Daily do time", cor: "--ag2", fonte: "corporativo", meet: true, rec: true },
     { ini: 630, fim: 690, t: "Revisão do BI", cor: "--ag2", fonte: "corporativo", meet: true },
     { ini: 900, fim: 930, t: "1:1 semanal", cor: "--ag2", fonte: "corporativo", meet: true, rec: true },
     { ini: 1050, fim: 1110, t: "Dentista", cor: "--ag1", fonte: "pessoal", meet: false }
@@ -433,7 +433,7 @@ footer{max-width:1080px;margin:0 auto;padding:96px 16px 64px;color:var(--ter);fo
   var depois = [
     { dia: "amanhã, sábado", itens: [ { h: "dia", t: "Aniversário", cor: "--ag1", fonte: "pessoal", rec: true } ] },
     { dia: "segunda, 5/10", itens: [
-      { h: "09:00", t: "Daily produto", cor: "--ag2", fonte: "corporativo", rec: true, extra: "seg a sex" },
+      { h: "09:00", t: "Daily do time", cor: "--ag2", fonte: "corporativo", rec: true, extra: "seg a sex" },
       { h: "10:00", t: "Comitê semanal", cor: "--ag2", fonte: "corporativo", rec: true } ] }
   ];
 
@@ -506,7 +506,7 @@ footer{max-width:1080px;margin:0 auto;padding:96px 16px 64px;color:var(--ter);fo
       papel = "livre"; c = "--fer";
       var ult = hoje.filter(visivel).slice(-1)[0];
       html = '<div class="h-rotulo">Livre</div><div class="h-titulo">dia livre a partir de '+hhmm(Math.max(ult ? ult.fim : m, m))+'</div>'+
-        '<div class="h-linha">segunda 09:00, '+esc(titulo("Daily produto"))+'</div>';
+        '<div class="h-linha">segunda 09:00, '+esc(titulo("Daily do time"))+'</div>';
     }
     h.style.setProperty("--cor", "var("+c+")");
     h.innerHTML = html;

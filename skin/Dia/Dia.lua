@@ -66,11 +66,11 @@ local function minutosAte(t, ag) return math.ceil((t - ag) / 60 - 1e-9) end
 
 -- ---------------------------------------------------------------- conteúdo (o que o cartão diz)
 local function nomeFonte(id)
-  if not S.dados or type(S.dados.sources) ~= 'table' then return id end
+  if not S.dados or type(S.dados.sources) ~= 'table' then return comum.T(tostring(id)) end
   for _, f in ipairs(S.dados.sources) do
-    if f.id == id then return (f.id or f.nome or id) end
+    if f.id == id then return comum.T(tostring(f.id or f.nome or id)) end
   end
-  return id
+  return comum.T(tostring(id))
 end
 
 local function corFonte(id)
@@ -99,20 +99,21 @@ local function linhaAviso()
   local partes = {}
   local L = S.leitorAg
   if S.dados and L.erro == 'sem arquivo' then
-    partes[#partes + 1] = 'agenda.json sumiu, mostrando a última leitura'
+    partes[#partes + 1] = comum.T('agenda.json sumiu, mostrando a última leitura')
   elseif S.dados and L.erro then
-    partes[#partes + 1] = 'agenda.json ilegível, mostrando a última leitura'
+    partes[#partes + 1] = comum.T('agenda.json ilegível, mostrando a última leitura')
   end
   if S.dados and type(S.dados.sources) == 'table' then
     local hoje0 = comum.inicioDoDia(agora())
     for _, f in ipairs(S.dados.sources) do
       if type(f) == 'table' and f.status and f.status ~= 'ok' then
-        local st = ROTULO_STATUS[f.status] or (tostring(f.status):match('^http(%d+)$') and ('erro ' .. f.status:sub(5))) or tostring(f.status)
-        local txt = tostring(f.id or f.nome or '?') .. ' ' .. st
+        local st = ROTULO_STATUS[f.status] and comum.T(ROTULO_STATUS[f.status])
+          or (tostring(f.status):match('^http(%d+)$') and (comum.T('erro ') .. f.status:sub(5))) or tostring(f.status)
+        local txt = comum.T(tostring(f.id or f.nome or '?')) .. ' ' .. st
         local ok = tonumber(f.lastOkAt)
         if ok and f.status ~= 'sem_credencial' then
-          if ok >= hoje0 then txt = txt .. ', dados de ' .. comum.hhmm(ok)
-          else txt = txt .. ', dados de ' .. os.date('%d/%m', ok) end
+          if ok >= hoje0 then txt = txt .. comum.T(', dados de ') .. comum.hhmm(ok)
+          else txt = txt .. comum.T(', dados de ') .. comum.diaMes(ok) end
         end
         partes[#partes + 1] = txt
       end
@@ -139,7 +140,7 @@ end
 -- Título do evento; no modo privado (cadeado da Agenda, variável Privado) vira "Compromisso",
 -- inclusive no tooltip, como na Agenda.
 local function tituloDe(ev)
-  if S.privado then return 'Compromisso' end
+  if S.privado then return comum.T('Compromisso') end
   return tostring(ev.title or '')
 end
 
@@ -147,7 +148,7 @@ local function textoProximoFuturo(ev, ag)
   -- "amanhã " / "seg 05/10 " + hora + título
   local amanha0 = comum.inicioDoDia(ag, 1)
   local quando
-  if ev.start < amanha0 + 86400 then quando = 'amanhã '
+  if ev.start < amanha0 + 86400 then quando = comum.T('amanhã ')
   else quando = comum.diaCurtoData(os.date('%Y-%m-%d', ev.start)) .. ' ' end
   return quando, comum.hhmm(ev.start), ' ' .. tituloDe(ev), ev.recurring == true
 end
@@ -167,9 +168,9 @@ local function calcular(ag)
 
   if not S.dados then
     C.papel, C.chave = 'proximo', 'semagenda'
-    C.kick = 'Agenda'
-    C.titulo = 'agenda indisponível'
-    C.meta[3] = 'o agenda-sync ainda não gravou o agenda.json'
+    C.kick = comum.T('Agenda')
+    C.titulo = comum.T('agenda indisponível')
+    C.meta[3] = comum.T('o agenda-sync ainda não gravou o agenda.json')
     return C
   end
 
@@ -186,9 +187,9 @@ local function calcular(ag)
     local ev = atuais[1]
     C.papel, C.ev = 'agora', ev
     C.chave = 'agora:' .. tostring(ev.id) .. ':' .. #atuais
-    C.kick = #atuais > 1 and ('Agora (' .. #atuais .. ')') or 'Agora'
+    C.kick = #atuais > 1 and (comum.T('Agora') .. ' (' .. #atuais .. ')') or comum.T('Agora')
     C.titulo = tituloDe(ev)
-    C.meta = {'termina ', comum.hhmm(ev['end']), ', faltam ' .. comum.duracao(minutosAte(ev['end'], ag)), ''}
+    C.meta = {comum.T('termina '), comum.hhmm(ev['end']), comum.Tf(', faltam %s', comum.duracao(minutosAte(ev['end'], ag))), ''}
     C.metaY = 160
     C.onda = true
     C.prog = (ag - ev.start) / math.max(60, ev['end'] - ev.start)
@@ -209,12 +210,12 @@ local function calcular(ag)
   if prox then
     local inn = minutosAte(prox.start, ag)
     C.ev = prox
-    local janela = comum.hhmm(prox.start) .. ' às ' .. comum.hhmm(prox['end']) .. ','
+    local janela = comum.hhmm(prox.start) .. comum.T(' às ') .. comum.hhmm(prox['end']) .. ','
     local rec = prox.recurring == true and '\238\162\149' or ''
     if inn <= CFG.livreMin then
       C.papel = inn <= CFG.urgenteMin and 'urgente' or 'proximo'
       C.chave = C.papel .. ':' .. tostring(prox.id)
-      C.kick = inn < CFG.emMin and ('Próximo, em ' .. comum.duracao(inn)) or ('Próximo, às ' .. comum.hhmm(prox.start))
+      C.kick = inn < CFG.emMin and comum.Tf('Próximo, em %s', comum.duracao(inn)) or comum.Tf('Próximo, às %s', comum.hhmm(prox.start))
       C.titulo = tituloDe(prox)
       C.meta = {'', janela, ' ' .. nomeFonte(prox.source), rec}
       if comum.urlSegura(prox.meetUrl) then
@@ -223,9 +224,9 @@ local function calcular(ag)
       end
     else
       C.papel, C.chave = 'livre', 'livreate:' .. tostring(prox.id)
-      C.kick = 'Livre'
-      C.titulo = 'livre até ' .. comum.hhmm(prox.start) .. ', ' .. comum.duracao(inn)
-      C.meta = {'depois ', comum.hhmm(prox.start), ' ' .. tituloDe(prox), rec}
+      C.kick = comum.T('Livre')
+      C.titulo = comum.Tf('livre até %s, %s', comum.hhmm(prox.start), comum.duracao(inn))
+      C.meta = {comum.T('depois '), comum.hhmm(prox.start), ' ' .. tituloDe(prox), rec}
       C.link = prox.link
     end
     if C.papel ~= 'livre' then C.link = prox.link end
@@ -233,13 +234,13 @@ local function calcular(ag)
   end
 
   -- LIVRE pelo resto do dia
-  C.papel, C.chave, C.kick = 'livre', 'livre', 'Livre'
+  C.papel, C.chave, C.kick = 'livre', 'livre', comum.T('Livre')
   local fim = nil
   for _, e in ipairs(hoje) do
     if e['end'] <= ag and (not fim or e['end'] > fim) then fim = e['end'] end
   end
-  if fim and fim < dia1 then C.titulo = 'dia livre a partir de ' .. comum.hhmm(fim)
-  else C.titulo = 'dia livre' end
+  if fim and fim < dia1 then C.titulo = comum.T('dia livre a partir de ') .. comum.hhmm(fim)
+  else C.titulo = comum.T('dia livre') end
   local fut
   for _, e in ipairs(evs) do
     if e.start >= dia1 then fut = e; break end
@@ -250,7 +251,7 @@ local function calcular(ag)
     C.link = fut.link
     C.chave = 'livre:' .. tostring(fut.id)
   else
-    C.meta = {'', '', 'nada mais na agenda', ''}
+    C.meta = {'', '', comum.T('nada mais na agenda'), ''}
   end
   return C
 end
@@ -321,7 +322,7 @@ local function desenharLinha(C, on, f, mistura)
       num(sc(rx)), num(sc(202)), num(sc(rx)), num(sc(208)), num(sc(1.5)), anim.alfa(on, 255 * 0.6 * alfaR, f))
     bang('!SetOption', 'Reset', 'X', num(sc(rx)))
     bang('!SetOption', 'Reset', 'FontColor', anim.alfa(on, 255 * alfaR, f))
-    bang('!SetOption', 'Reset', 'ToolTipText', (r < ag and 'Claude renovou às ' or 'Claude renova às ') .. comum.hhmm(r))
+    bang('!SetOption', 'Reset', 'ToolTipText', comum.T(r < ag and 'Claude renovou às ' or 'Claude renova às ') .. comum.hhmm(r))
     bang('!ShowMeter', 'Reset')
   else
     bang('!HideMeter', 'Reset')
@@ -433,7 +434,7 @@ local function aplicarTextos(C)
   bang('!SetOption', 'Titulo', 'LeftMouseUpAction', url and ('[' .. url .. ']') or '')
   local meet = comum.urlSegura(C.meet)
   bang('!SetOption', 'Botao', 'LeftMouseUpAction', meet and ('[' .. meet .. ']') or '')
-  bang('!SetOption', 'Botao', 'ToolTipText', C.btn == 'lit' and 'Entrar na videochamada' or 'Videochamada (acende 10 min antes)')
+  bang('!SetOption', 'Botao', 'ToolTipText', comum.T(C.btn == 'lit' and 'Entrar na videochamada' or 'Videochamada (acende 10 min antes)'))
   if C.aviso then
     bang('!SetOption', 'AvisoTexto', 'Text', comum.textoSeguro(C.aviso))
     bang('!SetOption', 'AvisoTexto', 'ToolTipText', comum.textoSeguro(C.aviso))
@@ -687,6 +688,16 @@ function Initialize()
     for _, k in ipairs({'CorSHi', 'CorOn', 'CorOnV', 'CorSold', 'CorOnSold', 'CorSol', 'CorOnSol', 'CorCalm',
       'CorOnCalm', 'CorAgPes', 'CorAgCor', 'CorAgFer'}) do
       CFG.cor[k] = var(k, '128,128,128')
+    end
+    -- O tema pode trocar fundo, texto e raios de cada papel (DiaFundo<Papel>, DiaTexto<Papel>,
+    -- DiaRaios<Papel>=TL,TR,BR,BL; o Aurora usa). Sem a variável, fica o PAPEL acima.
+    for nome, p in pairs(PAPEL) do
+      local cap = nome:sub(1, 1):upper() .. nome:sub(2)
+      local bg, on = var('DiaFundo' .. cap, ''), var('DiaTexto' .. cap, '')
+      if bg ~= '' then CFG.cor['DiaFundo' .. cap] = bg; p.bg = 'DiaFundo' .. cap end
+      if on ~= '' then CFG.cor['DiaTexto' .. cap] = on; p.on = 'DiaTexto' .. cap end
+      local a, b, c, d = var('DiaRaios' .. cap, ''):match('^%s*([%d%.]+)%s*,%s*([%d%.]+)%s*,%s*([%d%.]+)%s*,%s*([%d%.]+)%s*$')
+      if a then p.r = {tonumber(a), tonumber(b), tonumber(c), tonumber(d)} end
     end
     S.animVar = var('Animacoes', '1') ~= '0'
     S.privado = var('Privado', '0') == '1'

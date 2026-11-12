@@ -28,10 +28,10 @@ DebugAgenda=
 DebugSnapshot=
 
 ; Modo privado (cadeado da Agenda): 1 = títulos viram "Compromisso". O clique no cadeado grava
-; Privado=0/1 no Local.inc (!WriteKeyValue), então o estado sobrevive a refresh e reinício.
+; Privado=0/1 no Settings.inc (!WriteKeyValue), então o estado sobrevive a refresh e reinício.
 Privado=0
 
-; Apelidos das contas Claude. Padrão "conta N"; o apelido real fica no Local.inc (não versionado).
+; Apelidos das contas Claude. Padrão "conta N"; o apelido de cada um fica no Settings.inc.
 ApelidoConta1=conta 1
 ApelidoConta2=conta 2
 ApelidoConta3=conta 3
@@ -42,7 +42,7 @@ ApelidoConta7=conta 7
 ApelidoConta8=conta 8
 
 ; Máquina: discos com anel próprio, separados por vírgula (máximo 3). Unidade fora da lista não é
-; medida. Padrão: só o C:. Exemplo no Local.inc: Discos=C:,G:
+; medida. Padrão: só o C:. Exemplo no Settings.inc: Discos=C:,G:
 Discos=C:
 ; Rótulo fixo por unidade: RotuloDisco<letra>. Sem rótulo, aparece a própria letra ("D:").
 ; O rótulo do volume nunca é lido (o do Google Drive contém o e-mail).
@@ -58,7 +58,7 @@ DebugBateria=
 ReleituraClaudeS=20
 TrayParadoS=150
 ; Executável da bandeja (clique no bloco "bandeja parada"). Sempre com variável de ambiente
-; (%USERPROFILE%, %LOCALAPPDATA%), nunca com o nome de usuário escrito; o caminho real vai no Local.inc.
+; (%USERPROFILE%, %LOCALAPPDATA%), nunca com o nome de usuário escrito; o caminho de cada um vai no Settings.inc.
 TrayExe=%USERPROFILE%\claude-usage-tray\Claude Usage Tray.exe
 ; DebugTray=0 finge o processo da bandeja ausente (1 = presente; vazio = o real).
 DebugTray=
@@ -68,5 +68,12 @@ DebugTray=
 FonteClaude=
 FonteParadaS=900
 
-; Sobrescritas desta máquina (fora do repo). Modelo: Local.example.inc
+; Língua dos textos: pt (português) ou en (inglês). Escolha no Settings.inc.
+Idioma=pt
+; Modo demonstração: 1 = agenda e cotas de exemplo (Lua\demo.lua), sem helper nem bandeja.
+Demo=0
+
+; Configuração de quem instala (instruções em inglês): sobrescreve tudo acima.
+@IncludeSettings=#@#Settings.inc
+; Sobrescritas desta máquina (fora do repo, opcional). Modelo: Local.example.inc. Vem por último.
 @IncludeLocal=#@#Local.inc

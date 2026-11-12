@@ -5,6 +5,10 @@ formato do `agenda.json`: [CONTRATOS.md](CONTRATOS.md); o que já mordeu: [ARMAD
 
 ## Instalar e ligar
 
+Quem só quer usar instala o `.rmskin` da [Release](https://github.com/dosxnjos/horizonte/releases)
+(passo a passo no [README](../README.md)); o pacote é a pasta `skin\` com o layout genérico, montado
+por `tools/empacotar.py`. Para desenvolver, a junction:
+
 ```powershell
 powershell -NoProfile -File instalar.ps1 -ComSkin -SemDisparar
 ```
@@ -82,20 +86,27 @@ mal assim, fica o modo borrado (roadmap § Resultado dos spikes).
 
 ## Base (`skin\@Resources`)
 
-Todo widget inclui, nesta ordem: `Variaveis.inc` → `Tokens.inc` → `Estilos.inc`.
+Todo widget inclui, nesta ordem: `Variaveis.inc` (que inclui `Settings.inc` e `Local.inc` no fim) →
+`Tokens.inc` (que inclui `Tokens-#Tema#.inc` e `Idioma-#Idioma#.inc`) → `Estilos.inc`.
 
 | arquivo | o que tem |
 | --- | --- |
-| `Variaveis.inc` | `Scale`, `Tema`, `Animacoes`, `ReleituraS`, `Privado` (cadeado da Agenda; o clique grava no `Local.inc`), variáveis de depuração, apelidos `ApelidoConta1..8` (padrão `conta N`), discos da Máquina (`Discos`, `RotuloDisco<letra>`, `BateriaCadenciaS`, `DebugBateria`), Claude (`ReleituraClaudeS`, `TrayParadoS`, `TrayExe`, `DebugTray`) e, por último, `@Include` do `Local.inc` |
-| `Local.inc` | **não versionado** (`.gitignore`): sobrescritas da máquina, como os apelidos reais das contas Claude. Modelo: `Local.example.inc`. Sem ele, tudo funciona com os padrões |
-| `Tokens.inc` | inclui `Tokens-#Tema#.inc` e fixa o que não muda com o tema: cores do contrato Claude (`ClaudeOk/Alerta/Critico/Velho` e `ClaudeTrilho`, o `#46464E` do trilho das barras da bandeja), saúde de fonte (`CorAlerta`, `CorCritico`) e fontes (`FonteDisplay`, `FonteTexto`, `FonteMono`) |
-| `Tokens-expressivo.inc` | tema Expressivo, esquema "Ardósia" do protótipo: `CorS`, `CorSHi`, `CorOn`, `CorOnV`, `CorPri`, `CorOnPri`, `CorSol`, `CorOnSol`, `CorSold`, `CorOnSold`, `CorCalm`, `CorOnCalm`, `CorAgPes/Cor/Fer`, `CorCtl`, `CorOnCtl`, alfas (`AlfaChip`, `AlfaDoisPontos`) e raios. Cores em `R,G,B`; o alfa se acrescenta no uso: `#CorOnPri#,153` |
+| `Variaveis.inc` | padrões de tudo: `Scale`, `Tema`, `Idioma` (`pt`), `Demo` (`0`), `Animacoes`, `ReleituraS`, `Privado`, variáveis de depuração, apelidos `ApelidoConta1..8` (padrão "conta N"/"account N"), discos da Máquina (`Discos`, `RotuloDisco<letra>`, `BateriaCadenciaS`, `DebugBateria`), Claude (`ReleituraClaudeS`, `TrayParadoS`, `TrayExe`, `DebugTray`, `FonteClaude`) e, por último, `@Include` do `Settings.inc` e do `Local.inc` |
+| `Settings.inc` | **versionado**: a configuração de quem instala pelo `.rmskin`, com instruções em inglês (língua, demo, tema, escala, agenda, discos, contas Claude). Padrão do pacote público: `Idioma=en`, `Demo=1`. O `.rmskin` declara este arquivo em `VariableFiles`: reinstalar mantém os valores do usuário |
+| `Local.inc` | **não versionado** (`.gitignore`), opcional, lido por último: sobrescritas desta máquina (apelidos reais, `FonteClaude`, `Idioma=pt`, `Demo=0`). Modelo: `Local.example.inc`. O cadeado da Agenda grava `Privado` aqui se ele existir; senão, no `Settings.inc` |
+| `Tokens.inc` | inclui `Tokens-#Tema#.inc` e `Idioma-#Idioma#.inc`, e fixa o que não muda com o tema: cores do contrato Claude (`ClaudeOk/Alerta/Critico/Velho` e `ClaudeTrilho`, o `#46464E` do trilho das barras da bandeja), saúde de fonte (`CorAlerta`, `CorCritico`) e fontes (`FonteDisplay`, `FonteTexto`, `FonteMono`) |
+| `Tokens-expressivo.inc` | tema Expressivo, esquema "Ardósia" do protótipo: `CorS`, `CorSHi`, `CorOn`, `CorOnV`, `CorPri`, `CorOnPri`, `CorSol`, `CorOnSol`, `CorSold`, `CorOnSold`, `CorCalm`, `CorOnCalm`, `CorAgPes/Cor/Fer`, `CorCtl`, `CorOnCtl`, alfas (`AlfaChip`, `AlfaDoisPontos`) e raios (`RaioCartao` vale para Agenda, Máquina e Claude). Cores em `R,G,B`; o alfa se acrescenta no uso: `#CorOnPri#,153` |
+| `Tokens-pistache.inc` | `Tema=pistache`: o mesmo Expressivo no esquema claro "Pistache" do protótipo (`body[data-wall="pistache"]`). Só cores |
+| `Tokens-aurora.inc` | `Tema=aurora` ([protótipo](../design/horizonte-v1-aurora.html)): vidro escuro, acento âmbar único. Superfícies em `R,G,B,A` (por isso **nunca** escrever `#CorS#,alfa` nem `#CorSHi#,alfa` num meter); o relógio sem cartão (`CorPri` com alfa 1, para o arrasto continuar pegando); raio 14; o cartão Dia sem troca de forma e com o AGORA no vidro, pelas variáveis `DiaFundo<Papel>`, `DiaTexto<Papel>` e `DiaRaios<Papel>=TL,TR,BR,BL` que o `Dia.lua` lê (vazias = o `PAPEL` do Expressivo). Sem blur, grão nem hairline (o Rainmeter não faz) |
+| `Idioma-pt.inc` / `Idioma-en.inc` | textos fixos dos `.ini` (menus, rótulo "Entrar", tooltips) em variáveis `Txt*` |
 | `Estilos.inc` | MeterStyles: `EstTexto`, `EstDisplay`, `EstMono`, `EstDigito`, `EstChip` |
 | `Lua\carregar.lua` | carregador de módulos (ASCII, por `dofile`); aceita módulo em UTF-16 LE com BOM e passa o ambiente do widget (onde mora o `SKIN`) para o módulo |
 | `Lua\comum.lua` | leitor de JSON com cache do último estado bom (`comum.leitor`), datas em pt-BR por tabela (`dataExtensa`, `diaCurtoData`, `rotuloFeriado`), caminhos (`caminhoDados`, `caminhoAgenda`, `caminhoSnapshot`), tempo (`inicioDoDia`, `duracao` "1h30", `epochIso` para o `ResetsAt` do tray), `corHex`, `urlSegura` (filtro de URL antes de virar ação de clique), `expandirAmbiente` (`%VAR%` → valor), `existe`, log |
 | `Lua\anel.lua` | anel no gesto do protótipo para qualquer tamanho: `anel.novo(px, traço, Scale)` e, dele, `disco` (círculo/cookie/sol de N lóbulos, com giro), `arcos` (trilho + indicador com a folga de 4 px; varredura mínima opcional) e `ponto` (marcador acima do topo). Só gera as strings de `Shape`. Hoje só o Claude usa; o `Maquina.lua` tem a cópia original (migrar é pendência) |
 | `Lua\anim.lua` | molas pré-calculadas (mesma física do protótipo: rigidez `k`, amortecimento `z`), `anim.valor(mola, s)`, `anim.nomeada(nome, eps)` (eps 0,01 corta a cauda invisível das molas que passam do ponto e faz `forma`/`boing` caberem em ~0,42 s; `row` é a da entrada da Agenda), easing, interpolação de cor (`anim.cor`, `anim.alfa`) |
 | `Lua\json.lua` | rxi/json.lua 0.1.2 (MIT), ASCII |
+| `Lua\idioma.lua` | as frases em inglês, com a frase em português como chave. Todo texto visível montado pelo Lua passa por `comum.T('frase em pt')` (ou `comum.Tf('modelo %s', x)` quando a ordem das palavras muda); chave ausente mostra o português. Datas (`dataExtensa` "Thursday, November 12", `diaCurtoData` "Tue Nov 17", `diaMes`), decimal (`comum.decimal`: "9,3" / "9.3") e duração ("1h30" / "1h 30m") mudam no `comum.lua`. Hora sempre 24 h |
+| `Lua\demo.lua` | `Demo=1`: agenda e snapshot do Claude de exemplo, gerados em memória em volta de hoje (títulos nas duas línguas). O `comum.caminhoAgenda()`/`caminhoSnapshot()` devolvem `demo:agenda`/`demo:snapshot` e o `comum.lerArquivo` entrega o JSON gerado: o resto do widget não sabe que é demo. Nomes das contas no demo: "personal"/"work" (ou "pessoal"/"trabalho"), sem tocar nos `ApelidoConta` |
 
 **Escala.** O Rainmeter roda DPI-unaware: o Windows estica a janela inteira (×1,25 nesta máquina)
 e borra um pouco. Por isso `Scale=1` e as medidas são as lógicas do protótipo. Toda medida é
@@ -561,12 +572,12 @@ nome; "parado" = arquivo sem regravar há mais de `FonteParadaS` (900 s), sem ol
 | --- | --- |
 | conta do anel | a `Active=true`; sem nenhuma, a primeira (`Get-ActiveAccount` da bandeja) |
 | valor do anel | barra `Label="5h"`; sem ela, a primeira barra (`Get-SessionPct`). O número é o `Pct` como veio (arredondado); o arco usa o `Pct` limitado a 0..100 |
-| cor | verde `#30A46C` < 75 ≤ âmbar `#F5A623` < 95 ≤ vermelho `#E5484D` (12/11/2026, pedido do Gabriel; era 60/85). Disco interno na cor a 15 %: círculo, cookie (10 lóbulos, 0,05) no âmbar, sol (0,1) no vermelho. Trilho na cor a 24 % |
+| cor | verde `#30A46C` < 75 ≤ âmbar `#F5A623` < 95 ≤ vermelho `#E5484D` (12/11/2026, pedido do dono; era 60/85). Disco interno na cor a 15 %: círculo, cookie (10 lóbulos, 0,05) no âmbar, sol (0,1) no vermelho. Trilho na cor a 24 % |
 | zoom | de 95 em diante o arco mostra `(p-95)/5` da volta (mínimo de 8°, como a bandeja: 95 % é "início da cauda", não anel vazio) e aparece o **ponto marcador** acima do topo, na cor do arco. Sem texto |
 | dado velho | `Stale=true` da bandeja: anel, disco e barras daquela conta em cinza `#747684`, número a 62 %, e a idade **sempre visível** embaixo do número ("há 21 min"); idade = `AgeS` + (agora − `savedAt`). `AgeS` nulo: "antiga" no anel e "medição antiga" na legenda. Nenhum limiar próprio de idade (o widget nunca fica cinza com o ícone colorido) |
 | bandeja parada | `savedAt` com mais de `TrayParadoS` (150 s) **e** o processo `Claude Usage Tray.exe` ausente (`Measure=Process`, consultado só quando o `savedAt` passou do limite): anel cinza com a idade, e a legenda vira um **bloco cinza** "bandeja parada, dados de 00:10. Clique para abrir." O clique roda o `TrayExe` (expandido pelo Lua, conferido com `io.open`; com a bandeja viva não lança nada). Sem `TrayExe` válido, o bloco diz para ajustar no `Local.inc` |
 | nome da conta | `ApelidoConta<Num>` (o `Num` do snapshot, não a posição) ou "conta N". **E-mail e `Org` nunca aparecem**, nem no log |
-| legenda | "5h, produto, renova 14:59 (em 22 min)": `ResetsAt` (UTC) → hora local; outro dia ganha o dia curto ("sex 14:59"). `ResetsAt` vazio: "janela não iniciada"; já passado (snapshot velho): "renovou às 00:10". Velho: "sem medição nova há 21 min (última às 00:16)". Quebra em 282 px e o cartão cresce |
+| legenda | "5h, conta A, renova 14:59 (em 22 min)": `ResetsAt` (UTC) → hora local; outro dia ganha o dia curto ("sex 14:59"). `ResetsAt` vazio: "janela não iniciada"; já passado (snapshot velho): "renovou às 00:10". Velho: "sem medição nova há 21 min (última às 00:16)". Quebra em 282 px e o cartão cresce |
 | status ≠ ok | por texto, nunca por cor: `expired` "token expirado", `relogin` "re-login preciso", `notoken` "sem credencial salva", `apikey` "conta usa API key", `offline` "API indisponível", `ratelimited` "limite da API (429)", `nodata` "sem medição recente", outro "sem dados". Na ativa vai no fim da legenda; sem barras, o anel fica "–" e a legenda diz só o status. Na inativa: com barras, vira a etiqueta no lugar de "inativa"; sem barras, uma linha de texto no lugar das barras |
 | contas inativas | nome + etiqueta ("inativa", a idade se `Stale`, ou o status) e as barras **5h e 7d**: 4 px, ponta redonda, trilho `#46464E`, preenchimento mínimo de 2 px (1 % ainda aparece), cor pela mesma régua (cinza se `Stale`). Até 4 contas; passando disso, 3 e "mais N contas". O cartão cresce se a coluna passar da altura do anel |
 | hover no anel | a coluna da direita troca (fade de 180 ms) para **todas as barras da ativa** (5h, 7d, Fable...), com etiqueta "ativa"; a coluna do rótulo alarga para 36 px quando há rótulo longo. Sem inativas, a coluna em repouso mostra a ativa **só com a barra do anel** (5h): a regra é "só 5h na ativa", e 7d/Fable da ativa aparecem só no hover (03/10; antes a coluna mostrava todas as barras da ativa em repouso) |

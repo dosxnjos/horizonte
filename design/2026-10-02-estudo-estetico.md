@@ -99,7 +99,7 @@ widget de 400×300. Meta:
 Se o pico passar disso, ou se o movimento sem blur parecer "morto" ao dono, a
 rota é o plugin WebView2 dentro do Rainmeter.
 
-## Decisão: Expressivo (Gabriel, 02/10)
+## Decisão: Expressivo (dono, 02/10)
 
 > "gostei muito da aurora, mas pensando muito, quem ganhou meu coração foi a
 > expressivo"
@@ -115,7 +115,7 @@ Expressivo combina mais com o momento e com o papel de parede atual, e pediu as
 
 Conteúdo já decidido, aplicado aos dois:
 - só o disco C:, com o rótulo "SSD";
-- contas Claude chamadas `produto` e `dados`.
+- contas Claude com apelidos genéricos (`conta A` e `conta B`; o apelido real fica no `Local.inc`).
 
 Correções pedidas pelo dono, também nos dois:
 - **Relógio:** o letter-spacing negativo deixava cada slot de dígito mais
@@ -134,11 +134,11 @@ As [direções originais](direcoes/) ficam intactas como registro do estudo.
 - **Contador antigo:** o número passava pelos 9 dígitos ao ir de 9 para 0. Ainda
   precisa conferir se a revisão corrigiu.
 
-## Decisões em aberto (dono: Gabriel)
+## Decisões em aberto (dono: o autor)
 
 1. ~~Direção~~: dois temas, Expressivo (em uso) e Aurora.
 2. ~~Cor do "agora" no tema Aurora~~: **fica o âmbar, igual ao do Claude**
-   (Gabriel, 02/10: "ficar na mesma cor não é um problema, não tem me
+   (dono, 02/10: "ficar na mesma cor não é um problema, não tem me
    incomodado"). A sugestão dos juízes de trocar a cor foi descartada.
 3. ~~Relógio~~: os dois temas usam dígitos cheios. A matriz de pontos era só do
    Instrumento, que saiu.

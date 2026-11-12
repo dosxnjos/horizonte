@@ -626,7 +626,7 @@ input[type=range]:focus-visible::-moz-range-thumb{ box-shadow: 0 0 0 2px #121110
           <div class="mid"><span class="cl-n"><span class="rl" id="v-cl"></span><small>%</small></span><span class="cl-age" id="cl-age"></span></div>
         </div>
         <div class="cl-side">
-          <h3>dados</h3>
+          <h3>conta B</h3>
           <div class="mini"><span>5h</span><div class="bar" id="b6-5"><i class="bar-f"></i><i class="bar-t"></i></div><span>34%</span></div>
           <div class="mini"><span>7d</span><div class="bar" id="b6-7"><i class="bar-f"></i><i class="bar-t"></i></div><span>90%</span></div>
         </div>
@@ -1163,7 +1163,7 @@ function renderClaude(t, dir, quick){
     leg.innerHTML = `Sem medição nova da bandeja desde <b>${fmt(since)}</b>`;
   } else {
     const r = nextReset(t);
-    leg.innerHTML = `5h, produto, renova <b>${fmt(r)}</b> (em ${dur(r - t)})`;
+    leg.innerHTML = `5h, conta A, renova <b>${fmt(r)}</b> (em ${dur(r - t)})`;
   }
   const b5 = $('b6-5'), b7 = $('b6-7');
   b5.style.setProperty('--p', .34); b5.style.setProperty('--bc', 'var(--ok)');

@@ -89,6 +89,32 @@ Achou outra: acrescente aqui, no mesmo formato.
 - **Como evitar:** `carregar.lua` faz `setfenv(fn, getfenv(2))`: o módulo herda o ambiente de quem
   chamou. Não carregar módulo que usa `SKIN` por `dofile` direto.
 
+### `no function environment for tail call at level 2` ao carregar um módulo
+- **Sintoma:** o `widget.log` diz `carregar.lua:72: no function environment for tail call at level 2`
+  e o módulo não carrega (12/11/2026: as traduções do `idioma.lua` não apareciam, tudo seguia em
+  português).
+- **Causa:** o `carregar.lua` passa o ambiente de quem chamou com `getfenv(2)`. Numa chamada em cauda
+  (`return carregar('x')`, inclusive dentro de `pcall(function() return ... end)`) o nível 2 não
+  existe mais.
+- **Como evitar:** guardar numa local antes de devolver: `local m = carregar('x'); return m`.
+
+### Tema com superfície translúcida quebra `#CorS#,alfa`
+- **Sintoma:** cor errada ou forma sumida num tema novo, sem erro no log.
+- **Causa:** no `Tokens-aurora.inc` as superfícies (`CorS`, `CorSHi`, `CorSold`, `CorCalm`) já vêm em
+  `R,G,B,A`; `#CorS#,40` vira cinco números.
+- **Como evitar:** alfa extra só nos tokens de texto e acento (`CorOn`, `CorOnV`, `CorOnPri`...). O
+  `anim.alfa`/`anim.cor` do Lua aceitam os dois formatos.
+
+### Abrir o `.rmskin` "só para olhar" instalou o pacote
+- **Sintoma:** 12/11/2026: o `SkinInstaller.exe` foi aberto com um `.rmskin` de teste só para conferir a
+  tela (nome, autor, versão) e fechado à força; a pasta da config apareceu em `Skins\` e o Relógio dela
+  ficou `Active=1`. Ninguém clicou em Install. A causa não foi isolada.
+- **Causa:** não confirmada. Se o mesmo acontecesse com o pacote real, o instalador trocaria a pasta
+  `Skins\Horizonte`, que nesta máquina é a junction para o repo.
+- **Como evitar:** teste de instalador só com o pacote gerado com **outro nome de config**
+  (`e.CONFIG='HorizonteTesteInstalador'` antes de `montar`). Depois: `!DeactivateConfig`, conferir
+  `Active=0`, apagar `Skins\<config>` e `Layouts\<config>`, `!RefreshApp`.
+
 ### Chip (ou qualquer meter) medido com largura zero
 - **Sintoma:** o fundo do chip sai com ~24 px, só o padding, embora o texto apareça inteiro.
 - **Causa:** `SKIN:GetMeter(x):GetW()` devolve **0 para meter oculto** (`Hidden=1`), mesmo depois

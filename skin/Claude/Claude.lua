@@ -88,14 +88,22 @@ end
 local function statusTexto(st)
   st = tostring(st or '')
   if st == '' or st == 'ok' then return nil end
-  return STATUS[st] or 'sem dados'
+  return comum.T(STATUS[st] or 'sem dados')
 end
 
 local function nomeConta(c)
   local n = tonumber(c.Num)
-  if not n then return 'conta ?' end
+  if not n then return comum.T('conta') .. ' ?' end
   n = math.floor(n)
-  return var('ApelidoConta' .. n, 'conta ' .. n)
+  -- modo demo: nomes de exemplo, sem tocar nos apelidos de quem configurou contas de verdade
+  if comum.demo() then
+    local d = comum.en and {'personal', 'work'} or {'pessoal', 'trabalho'}
+    if d[n] then return d[n] end
+  end
+  local padrao = comum.T('conta') .. ' ' .. n
+  local v = var('ApelidoConta' .. n, padrao)
+  if v == 'conta ' .. n then return padrao end
+  return v
 end
 
 local function barras(c)
@@ -128,8 +136,8 @@ end
 local function idadeTexto(s)
   if not s then return nil end
   local m = math.max(1, math.floor(s / 60))
-  if m >= 48 * 60 then return 'há ' .. math.floor(m / 1440) .. ' dias' end
-  return 'há ' .. comum.duracao(m)
+  if m >= 48 * 60 then return comum.Tf('há %s', comum.Tf('%s dias', math.floor(m / 1440))) end
+  return comum.Tf('há %s', comum.duracao(m))
 end
 
 -- "14:59" se cai hoje, "sex 14:59" se não
@@ -139,13 +147,13 @@ local function hhmmDia(t, agora)
 end
 
 local function textoReset(iso, agora)
-  if type(iso) ~= 'string' or iso == '' then return 'janela não iniciada' end
+  if type(iso) ~= 'string' or iso == '' then return comum.T('janela não iniciada') end
   local t = comum.epochIso(iso)
-  if not t then return 'janela não iniciada' end
-  if t <= agora then return 'renovou às ' .. hhmmDia(t, agora) end
+  if not t then return comum.T('janela não iniciada') end
+  if t <= agora then return comum.T('renovou às ') .. hhmmDia(t, agora) end
   local min = math.ceil((t - agora) / 60)
-  local em = (min >= 48 * 60) and (math.floor(min / 1440) .. ' dias') or comum.duracao(min)
-  return 'renova ' .. hhmmDia(t, agora) .. ' (em ' .. em .. ')'
+  local em = (min >= 48 * 60) and comum.Tf('%s dias', math.floor(min / 1440)) or comum.duracao(min)
+  return comum.Tf('renova %s (em %s)', hhmmDia(t, agora), em)
 end
 
 -- linha curta da coluna (FonteClaude): "renova hoje 16:00", "renova sex 14:00", "renovou hoje 16:00"
@@ -153,8 +161,8 @@ local function textoRenovaCurto(iso, agora)
   local t = (type(iso) == 'string' and iso ~= '') and comum.epochIso(iso) or nil
   if not t then return nil end
   local quando = hhmmDia(t, agora)
-  if comum.dataIso(t) == comum.dataIso(agora) then quando = 'hoje ' .. quando end
-  return (t <= agora and 'renovou ' or 'renova ') .. quando
+  if comum.dataIso(t) == comum.dataIso(agora) then quando = comum.T('hoje ') .. quando end
+  return comum.T(t <= agora and 'renovou ' or 'renova ') .. quando
 end
 
 -- O processo da bandeja está rodando? (Measure=Process, atualizado só aqui)
@@ -203,7 +211,7 @@ local function derivar(snap, agora)
   if not ativa then
     E.texto, E.f, E.zoom, E.cor, E.forma, E.apagado = '–', 0, false, T.velho, 0, true
     E.cap = parado and idadeTexto(idadeSalvo) or ''
-    E.prefixo, E.resto = '', (snap == nil) and 'bandeja ainda sem medição' or 'nenhuma conta no snapshot'
+    E.prefixo, E.resto = '', comum.T((snap == nil) and 'bandeja ainda sem medição' or 'nenhuma conta no snapshot')
   else
     local bs = barras(ativa)
     local b = barraSessao(bs)
@@ -213,7 +221,7 @@ local function derivar(snap, agora)
     if not b then
       E.texto, E.f, E.zoom, E.cor, E.forma, E.apagado = '–', 0, false, T.velho, 0, true
       E.cap = parado and idadeTexto(idadeSalvo) or ''
-      E.prefixo, E.resto = nome, st or 'sem dados'
+      E.prefixo, E.resto = nome, st or comum.T('sem dados')
     else
       local p = b.pct
       local pc = limitar(p, 0, 100)
@@ -227,16 +235,16 @@ local function derivar(snap, agora)
       local idade = idadeConta(ativa)
       if velho then
         -- sem AgeS (cswap antigo) não há idade: "antiga" cabe dentro do anel; a legenda explica
-        E.cap = idadeTexto(idade) or 'antiga'
+        E.cap = idadeTexto(idade) or comum.T('antiga')
       else
         E.cap = ''
       end
-      E.prefixo = b.rot .. ', ' .. nome .. ((S.fonte ~= '' and #lista > 1) and ' (ativa)' or '')
+      E.prefixo = b.rot .. ', ' .. nome .. ((S.fonte ~= '' and #lista > 1) and comum.T(' (ativa)') or '')
       if ativa.Stale == true then
         if idade then
-          E.resto = 'sem medição nova ' .. idadeTexto(idade) .. ' (última às ' .. comum.hhmm(agora - idade) .. ')'
+          E.resto = comum.Tf('sem medição nova %s (última às %s)', idadeTexto(idade), comum.hhmm(agora - idade))
         else
-          E.resto = 'medição antiga'
+          E.resto = comum.T('medição antiga')
         end
       else
         E.resto = textoReset(b.reset, agora)
@@ -247,14 +255,14 @@ local function derivar(snap, agora)
 
   -- ---------- bandeja parada: bloco no lugar da legenda
   if parado then
-    local quando = salvo and (', dados de ' .. hhmmDia(salvo, agora)) or ''
+    local quando = salvo and (comum.T(', dados de ') .. hhmmDia(salvo, agora)) or ''
     local exe = comum.expandirAmbiente(var('TrayExe', ''))
     if S.fonte ~= '' then
-      E.bloco = 'cota sem atualização' .. quando .. '. Confira a tarefa que grava o arquivo da FonteClaude.'
+      E.bloco = comum.T('cota sem atualização') .. quando .. comum.T('. Confira a tarefa que grava o arquivo da FonteClaude.')
     elseif exe ~= '' and comum.existe(exe) then
-      E.bloco = 'bandeja parada' .. quando .. '. Clique para abrir.'
+      E.bloco = comum.T('bandeja parada') .. quando .. comum.T('. Clique para abrir.')
     else
-      E.bloco = 'bandeja parada' .. quando .. '. Ajuste TrayExe no Local.inc para abrir por aqui.'
+      E.bloco = comum.T('bandeja parada') .. quando .. comum.T('. Ajuste TrayExe no Settings.inc para abrir por aqui.')
     end
   end
 
@@ -272,14 +280,14 @@ local function derivar(snap, agora)
       end
     end
     if #out == 0 then
-      out[1] = {tipo = 'aviso', chave = tostring(c.Num) .. '|aviso', rot = statusTexto(c.Status) or 'sem dados'}
+      out[1] = {tipo = 'aviso', chave = tostring(c.Num) .. '|aviso', rot = statusTexto(c.Status) or comum.T('sem dados')}
     end
     return out
   end
   local function etiqueta(c, padrao)
-    if c.Stale == true then return idadeTexto(idadeConta(c)) or 'medição antiga' end
+    if c.Stale == true then return idadeTexto(idadeConta(c)) or comum.T('medição antiga') end
     if #barras(c) > 0 and statusTexto(c.Status) then return statusTexto(c.Status) end
-    return padrao
+    return comum.T(padrao)
   end
 
   if ativa then
@@ -325,7 +333,7 @@ local function derivar(snap, agora)
       for _, l in ipairs(linhas(c, {['5h'] = true, ['7d'] = true})) do P[#P + 1] = l end
     end
     if cabe < #inativas then
-      P[#P + 1] = {tipo = 'nome', nome = 'mais ' .. (#inativas - cabe) .. ' contas', tag = ''}
+      P[#P + 1] = {tipo = 'nome', nome = comum.Tf('mais %s contas', #inativas - cabe), tag = ''}
     end
   end
   return E
@@ -747,7 +755,7 @@ end
 
 -- Recalcula e mostra só o que mudou. modo: nil (troca), 'entrada'.
 local function aplicar(modo)
-  local agora = os.time()
+  local agora = comum.agora()
   local E = derivar(S.snap, agora)
   S.E = E
   local mexeu = false
@@ -967,7 +975,7 @@ function AbrirBandeja()
   seguro(function()
     local exe = comum.expandirAmbiente(var('TrayExe', ''))
     if exe == '' or not comum.existe(exe) then
-      comum.log('erro', 'TrayExe não encontrado (ajuste no Local.inc)')
+      comum.log('erro', 'TrayExe não encontrado (ajuste no Settings.inc)')
       return
     end
     if exe:find('[%[%]"#]') then

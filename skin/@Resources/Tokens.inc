@@ -2,6 +2,8 @@
 ; Tokens do tema ativo. Um arquivo por tema: Tokens-<tema>.inc, escolhido por Tema no Variaveis.inc.
 ; Este arquivo vem depois do Variaveis.inc (o #Tema# precisa existir antes deste @Include).
 @IncludeTema=#@#Tokens-#Tema#.inc
+; Textos fixos dos .ini na língua escolhida (Idioma=pt|en): Idioma-<x>.inc
+@IncludeIdioma=#@#Idioma-#Idioma#.inc
 
 ; Contrato do anel Claude e alertas de sistema: NÃO mudam com o tema (herdado do tray, roadmap § 1)
 ClaudeOk=48,164,108

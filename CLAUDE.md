@@ -15,3 +15,6 @@ repo): `C:\Dev\cerebro\projetos\horizonte.md`.
    [docs/widgets.md](docs/widgets.md).
 5. **`agenda.json` só muda junto com [docs/CONTRATOS.md](docs/CONTRATOS.md)**; `uv run pytest`
    verde antes de commit; armadilhas em [docs/ARMADILHAS.md](docs/ARMADILHAS.md).
+6. **Texto visível em duas línguas:** frase nova no Lua passa por `comum.T`/`comum.Tf` com a tradução em
+   `Lua\idioma.lua`; texto fixo de `.ini` vira `#Txt*#` nos `Idioma-*.inc`. Nome real (pessoa, conta) nunca
+   no repo: só no `Local.inc`. Detalhe: [widgets.md § Base](docs/widgets.md#base-skinresources).
